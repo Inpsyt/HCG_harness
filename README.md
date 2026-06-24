@@ -5,7 +5,7 @@ Claude Code plugin. It carries the process methodology and HCG-standard stack
 conventions so a new project gets the full pipeline by filling **one instance
 slot** (`.claude/project.md`) + a domain skill — no harness re-authoring.
 
-Extracted from the KMA project's in-repo harness and re-aligned to the **HCG
+Extracted from an existing in-repo harness and re-aligned to the **HCG
 standard stack** (Next.js App Router · MariaDB + Prisma · TanStack Query /
 Zustand / React Hook Form / Zod · feature-centric structure). See
 `HCG-Framework.md` (one level up) for the full HCG standard.

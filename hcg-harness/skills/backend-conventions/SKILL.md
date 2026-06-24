@@ -18,7 +18,7 @@ API·서비스 레이어의 스택 일반 방법론. 프로젝트 고유의 비�
 
 - **프레임워크**: Next.js App Router. `app/api/{...}/route.ts` 는 **얇게 유지** — 요청 파싱/응답만 하고 실제 로직은 해당 기능의 `features/{기능명}/actions.ts`(Server Action / API 핸들러)를 호출한다.
 - **기능 중심 구조**: 한 기능의 로직·타입·검증을 한 폴더에 격리한다 — `features/{기능명}/{actions.ts, schema.ts, types.ts}`. 다른 feature 폴더의 파일을 수정하지 않는다.
-- **데이터 접근**: Prisma 로 DB 에 접근한다(MariaDB, `provider="mysql"`). 입력은 항상 파라미터 바인딩으로 전달하고 문자열 보간(raw SQL 주입)을 피한다. Drizzle/TypeORM 도입 금지.
+- **데이터 접근**: Prisma 로 DB 에 접근한다(MariaDB, `provider="mysql"`). 입력은 항상 파라미터 바인딩으로 전달하고 문자열 보간(raw SQL 주입)을 피한다. 대체 ORM(TypeORM 등) 도입 금지.
 - **입력 검증**: 경계(요청 바디·쿼리)에서 **Zod 스키마**(`features/{기능명}/schema.ts`)로 검증한 뒤 로직에 넘긴다.
 - 요청/응답은 계약에 정의된 스키마와 1:1로 매핑한다.
 - **모듈 분리**: 대용량·배치·실시간 등 복잡 로직만 별도 서비스(`services/`, Fastify 우선)로 분리한다. 처음부터 마이크로서비스로 쪼개지 않는다.
