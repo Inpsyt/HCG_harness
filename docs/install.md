@@ -4,10 +4,12 @@
 > the **instance slot** so the agent shells resolve to that project's paths,
 > stack, and domain rules.
 >
-> The harness ships the portable layer only: 5 agent shells, 6 portable skills
-> (3 process + 3 HCG-stack conventions), 2 verification hooks, 3 workflow
+> The harness ships the portable layer only: 5 agent shells, 7 portable skills
+> (4 process + 3 HCG-stack conventions), 4 hooks (PreToolUse contracts+destructive
+> guard · PostToolUse lint · SessionStart context · Stop phase-gate), 4 workflow
 > templates, and the HARNESS methodology core (`CLAUDE-core.md`). Project paths,
-> domain rules, and per-project skills live in the **consuming** project.
+> domain rules, the codex-gate wrapper, and per-project skills live in the
+> **consuming** project.
 
 ---
 
@@ -42,7 +44,7 @@ claude plugin marketplace add <path-to>/hcg_harness
 # 3. install the plugin
 claude plugin install hcg-harness@hcg-harness-marketplace
 
-# 4. confirm the loaded inventory (5 agents + 6 skills + 2 hooks + 3 workflows)
+# 4. confirm the loaded inventory (5 agents + 7 skills + 4 hooks + 4 workflows)
 claude plugin list
 claude plugin details hcg-harness
 ```
@@ -50,10 +52,13 @@ claude plugin details hcg-harness
 This layers the agent shells, skills, hooks, and workflow templates on top of
 the project's own `.claude/` **without overwriting** anything in it.
 
-The bundled **3 workflow templates** (`audit` / `migrate` / `test-gen`) live in
-the plugin's auto-discovered `workflows/` dir; once installed they are loadable
-as named workflows — `Workflow({ name: 'audit' | 'migrate' | 'test-gen', args })`
-— for independent · bulk · read-only work that does not fit the static pipeline.
+The bundled **4 workflow templates** (`audit` / `migrate` / `test-gen` / `review`)
+live in the plugin's auto-discovered `workflows/` dir; once installed they are
+loadable as named workflows —
+`Workflow({ name: 'audit' | 'migrate' | 'test-gen' | 'review', args })` — for
+independent · bulk · read-only work that does not fit the static pipeline
+(`review` = a read-only code-review fan-out over a diff, with codex-D9
+gating/non-gating split).
 They are generic skeletons; inject project specifics via `args` + `.claude/project.md`.
 (Workflows must be enabled in the consuming project — gated by `disableWorkflows`
 / env `CLAUDE_CODE_DISABLE_WORKFLOWS`.)
@@ -79,6 +84,14 @@ launch **before** it can fail-open. For the copy method, call the real hooks
 ```json
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          { "type": "command", "command": "node .claude/hooks/contracts-guard.mjs", "timeout": 15 }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write|MultiEdit",
@@ -91,6 +104,13 @@ launch **before** it can fail-open. For the copy method, call the real hooks
       {
         "hooks": [
           { "type": "command", "command": "node .claude/hooks/session-start-context.mjs", "timeout": 15 }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node .claude/hooks/phase-gate-check.mjs", "timeout": 15 }
         ]
       }
     ]
@@ -141,6 +161,7 @@ the project's `CLAUDE.md` with a bare import line:
 
 Add a PROJECT section to `CLAUDE.md` for project identity/overview/commands; keep
 PROJECT values as pointers to `.claude/project.md` and the domain skill.
+(Template: `templates/CLAUDE.md`.)
 
 ### 2d. Bind the agent shells to this instance
 
@@ -166,6 +187,28 @@ the frontmatter `description` keeps a human-readable HCG-stack hint). Install is
 > the plugin as its single source, shells sterilized once); until then the
 > add-the-slots flow above is the additive path. See `portable-instance-boundary.md`.
 
+### 2e. Codex gate wrapper (`scripts/codex-review.mjs`)
+
+The qa-agent's Phase-completion gate (`codex-review` skill) runs
+`pnpm codex:review <base_sha>` — a wrapper this plugin does **not** bundle (it
+depends on the separate **codex-companion** plugin and your project's git/CLI).
+Wire it once per project:
+
+1. Copy the reference: `cp templates/codex-review.mjs <project>/scripts/codex-review.mjs`.
+2. Add the script to the project `package.json`:
+   ```json
+   { "scripts": { "codex:review": "node scripts/codex-review.mjs" } }
+   ```
+3. Edit the `// CUSTOMIZE` block in `scripts/codex-review.mjs` to call your
+   installed codex-companion review command (it is handed the cumulative diff +
+   the built-in `D9_FOCUS`). It must print the review to stdout and exit non-zero
+   on infra failure so the gate fails closed (cannot review → Phase cannot close).
+4. First-run auth: `node "<codex plugin>/codex-companion.mjs" setup --json` (or
+   `/codex:setup`).
+
+Until wired, the codex gate is unavailable — qa surfaces "cannot review" rather
+than a false PASS.
+
 ---
 
 ## 3. Verify the install (rung-4, manual)
@@ -173,10 +216,15 @@ the frontmatter `description` keeps a human-readable HCG-stack hint). Install is
 | Check | How |
 |---|---|
 | Manifests valid | `claude plugin validate <pkg> --strict` → exit 0 (method A) |
-| Components loaded | `claude plugin details hcg-harness` shows 5 agents + 6 skills + 2 hooks |
+| Components loaded | `claude plugin details hcg-harness` shows 5 agents + 7 skills + 4 hooks |
+| Hook unit tests | `npm test` (or `node --test hcg-harness/hooks/*.test.mjs`) → all pass |
 | Agent resolves slot | Spawn an agent; confirm it Reads `.claude/project.md` and the `<domain>` skill |
-| Hooks fire | Edit a `*.ts` file under the app dir → PostToolUse runs ESLint; new session → SessionStart injects phase/issue context |
-| Hook app dir | If your source root is not `apps/web`, set `POST_EDIT_VERIFY_APP_DIR` (e.g. `.`, `web`); else the lint hook silently no-ops |
+| Lint hook fires | Edit a `*.ts` under the app dir → PostToolUse runs ESLint; new session → SessionStart injects phase/issue context |
+| Contracts lock fires | Try to Edit `contracts/*` without `HARNESS_CONTRACTS_WRITE=1` → PreToolUse denies it (set the env only for deliberate authoring). NB: whether PreToolUse fires for *subagent* calls is undocumented — verify in your env |
+| Destructive guard fires | A Bash `rm -rf /` or `prisma migrate reset` is denied unless `HARNESS_DISABLE_DESTRUCTIVE_GUARD=1` |
+| Phase-gate at Stop | With an in-progress, un-gated phase in `tasks/phase-meta.yml`, ending the session warns (or blocks if `HARNESS_PHASE_GATE_BLOCK=1`) |
+| Hook app dir | If your source root is not `apps/web`, set `POST_EDIT_VERIFY_APP_DIR` (e.g. `.`, `web`, or a comma-separated list); else the lint hook silently no-ops |
+| Type-check gate | Optional: `POST_EDIT_VERIFY_TSC=1` adds a project `tsc --noEmit` after a clean lint |
 | Session label | Optional: set `SESSION_CONTEXT_LABEL` to your project name (default `[harness session context]`) |
 
 A full empty-project end-to-end install + run is environment-dependent (separate

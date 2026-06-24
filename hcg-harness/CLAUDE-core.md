@@ -33,7 +33,7 @@
 - 새 실행 로직(분기 / 정규식 / async / 상태 변화) 추가 → qa-agent + codex 게이트 **유지**(codex가 잡을 게 있음).
 - 순수 상수 / 설정값 / 주석 / 카피, **새 분기 0** → 빌드·타입·lint·grep 검증으로 충분, codex 생략 가능.
 
-**사전 고지 의무 (필수):** fast-path로 가기로 하면 착수 전에 한 줄로 선언한다 — 예: `fast-path: 4게이트 전부 아니오(계약 무변경·단일 backend·설계 결정 없음·되돌리기 쉬움), 새 로직 없어 codex 생략`. 사용자가 거부(veto)하면 즉시 풀 파이프라인으로 전환한다. **선언 없이 fast-path 금지.**
+**사전 고지 의무 (필수):** fast-path로 가기로 하면 착수 전에 한 줄로 선언한다 — 예: `fast-path: 4게이트 전부 아니오(계약 무변경·단일 backend·설계 결정 없음·되돌리기 쉬움), 새 로직 없어 codex 생략`. 사용자가 거부(veto)하면 즉시 풀 파이프라인으로 전환한다. **선언 없이 fast-path 금지.** 이 선언은 휘발성이므로 사후 회귀 분석을 위해 `tasks/phase-meta.yml` 의 `fast_path_log:` 에도 한 줄 영속화한다(`pipeline-phase` 스킬).
 
 ## 공유 계약서 (contracts/)  〔■ HARNESS · 개념 portable / 파일 목록은 PROJECT〕
 에이전트 간 불일치 방지를 위해 Plan Agent가 관리하는 계약서:

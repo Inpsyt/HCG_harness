@@ -1,11 +1,11 @@
 # Workflow templates (dynamic-mode fan-out scaffolds)
 
 > **Dynamic-mode workflow templates (additive, non-destructive).**
-> Three reusable **Workflow** fan-out templates for the harness's *dynamic
+> Four reusable **Workflow** fan-out templates for the harness's *dynamic
 > execution mode* — the mode used when work is **independent · bulk · discovery-
 > shaped** (codemods, mass migrations, per-module test generation, read-only
-> audits/research), as opposed to the *static mode* (tightly-coupled features
-> run through the plan→db/be/fe→qa pipeline).
+> audits/research, diff reviews), as opposed to the *static mode* (tightly-coupled
+> features run through the plan→db/be/fe→qa pipeline).
 >
 > These ship inside the portable `hcg-harness` plugin bundle and are **generic,
 > runnable skeletons**: the load-bearing `.js` templates carry zero source-project
@@ -19,6 +19,7 @@
 | `audit` | `audit.js` | read-oriented fan-out: Scope → parallel finders → adversarial verify → synthesize (**fail-closed:** a degraded finder/verifier surfaces `incomplete:true`, never a false-clean — F11; every agent-output is structure-validated before use, so a malformed scope/synthesis is an honest `incomplete`/salvage, never a crash — F5; each finding ELEMENT is validated too, so a malformed finding element is discarded into an honest `incomplete`, never a crash at the verify label — F6; a verifier-supplied `severity` is accepted only if in `ALLOWED_SEVERITIES`, so an out-of-enum severity can't corrupt the `sevRank` sort — F7) | **No file edits** — `agentType:'Explore'` runtime-blocks Edit/Write/NotebookEdit (Bash *not* blocked → shell mutation advisory; set a Read/Grep/Glob-only `AUDIT_AGENT_TYPE` for a hard guarantee) |
 | `migrate` | `migrate.js` | bulk codemod: Discover → pipeline transform + **co-located self-check** (worktree-isolated) → aggregate gate (fail-closed; `verify.gates` normalized to an array before any method, so a non-array `gates` fails closed as malformed-gates, never a crash — F13) | Yes — isolated + disjoint |
 | `test-gen` | `test-gen.js` | per-module tests: Discover → parallel generate + **co-located suite run** (worktree-isolated) → aggregate (fail-closed) | Yes — isolated + disjoint |
+| `review` | `review.js` | read-oriented **code-review** fan-out over a changeset: Scope (resolve diff + dimensions) → parallel reviewers (each finding tagged KIND gating/non-gating per codex D9) → adversarial verify of GATING findings → synthesize a PASS/FAIL gate verdict + non-gating appendix. **Fail-closed:** a degraded reviewer/verifier or an over-cap/dropped dimension forces `verdict:'incomplete'` (never a false PASS); the final verdict is code-overridden to `fail` on any confirmed gating finding. **Deliberately lighter** than audit's multi-round hardening (anti-over-design — §6). | **No file edits** — `agentType:'Explore'` runtime-blocks Edit/Write/NotebookEdit (Bash advisory) |
 
 ---
 
@@ -175,6 +176,23 @@ Workflow({ name: 'audit', args: '<scope or comma-separated dimension list>' })
     blocked; **shell mutation is advisory.** For a hard no-mutation guarantee, set
     `AUDIT_AGENT_TYPE` (`// CUSTOMIZE`) to a custom agent type whose tools are
     exactly Read/Grep/Glob (no Bash) — then shell mutation is runtime-blocked too.
+
+### `review` (read-only diff review)
+```
+Workflow({ name: 'review', args: '<diff range | PR | file scope>' })
+```
+- `// CUSTOMIZE` seams: `DEFAULT_DIMENSIONS` (review axes), `MAX_DIMENSIONS` /
+  `MAX_GATING_VERIFIED` (caps), `VERIFY_VOTES`, `REVIEW_AGENT_TYPE`.
+- **KIND split (codex D9):** each finding is tagged `gating` (correctness/safety
+  defect OR explicit requirement/`contracts/` violation) vs `non-gating`
+  (gap/enhancement/over-design/style). Only confirmed **gating** findings fail the
+  gate; non-gating ride the appendix regardless of severity — the same gating
+  philosophy as the `codex-review` skill, so an in-harness Claude review and the
+  codex gate agree.
+- **Fail-closed verdict:** the final `verdict` is code-overridden — `fail` on any
+  confirmed gating finding, `incomplete` on any degraded reviewer / unverified
+  gating / over-cap / dropped dimension — so a degraded run never reads as a clean
+  PASS. Read-only (`agentType:'Explore'`); it does **not** replace your CI.
 
 ### `migrate` (bulk codemod — writes)
 ```

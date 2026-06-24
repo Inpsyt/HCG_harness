@@ -20,10 +20,10 @@ hcg_harness/                         # repo = single-plugin marketplace
 │  ├─ CLAUDE-core.md                 # HARNESS methodology core (pipeline · fast-path · Operating Rules §0–§5)
 │  ├─ agents/                        # 5 generic role shells: plan · qa · db · backend · front
 │  ├─ skills/
-│  │  ├─ pipeline-phase · codex-review · verification-ladder   # process (stack-neutral)
-│  │  └─ db- · backend- · frontend-conventions                 # HCG-standard stack
-│  ├─ hooks/                         # PostToolUse ESLint + SessionStart context (+ launchers)
-│  └─ workflows/                     # audit · migrate · test-gen (dynamic-mode templates)
+│  │  ├─ pipeline-phase · codex-review · verification-ladder · contract-authoring  # process (stack-neutral)
+│  │  └─ db- · backend- · frontend-conventions                                     # HCG-standard stack
+│  ├─ hooks/                         # PreToolUse contracts+destructive guard · PostToolUse lint · SessionStart context · Stop phase-gate (+ launchers · *.test.mjs)
+│  └─ workflows/                     # audit · migrate · test-gen · review (dynamic-mode templates)
 ├─ templates/project.md              # the instance-slot template (HCG defaults)
 └─ docs/
    ├─ install.md                     # install + fill-the-slot guide
@@ -32,8 +32,10 @@ hcg_harness/                         # repo = single-plugin marketplace
 
 ## The model
 
-- **Portable** (this package): pipeline ①–⑥, fast-path gates, verification
-  ladder, codex review gate, and HCG-standard db/backend/frontend conventions.
+- **Portable** (this package): pipeline ①–⑥, fast-path gates + MoSCoW scope
+  discipline, verification ladder, codex review gate, a contracts write-lock +
+  destructive-command guard (PreToolUse), and HCG-standard db/backend/frontend
+  conventions.
 - **Per-project** (the consuming repo): `.claude/project.md` (the one slot), a
   domain skill, `contracts/*`, and the app code.
 
