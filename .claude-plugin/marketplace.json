@@ -1,0 +1,17 @@
+{
+  "name": "hcg-harness-marketplace",
+  "owner": {
+    "name": "HCG"
+  },
+  "metadata": {
+    "description": "Single-plugin marketplace hosting the portable HCG harness (pipeline, verification, codex gate, HCG-standard stack conventions)."
+  },
+  "plugins": [
+    {
+      "name": "hcg-harness",
+      "source": "./hcg-harness",
+      "description": "HCG portable multi-agent development harness: 5 agent shells + 6 portable skills (pipeline-phase / codex-review / verification-ladder + db/backend/frontend HCG-stack conventions) + 2 verification hooks + 3 workflow templates + HARNESS core.",
+      "version": "0.1.0"
+    }
+  ]
+}

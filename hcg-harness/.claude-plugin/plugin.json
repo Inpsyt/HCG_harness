@@ -1,0 +1,20 @@
+{
+  "name": "hcg-harness",
+  "version": "0.1.0",
+  "description": "HCG portable multi-agent development harness — pipeline phases, verification ladder, codex review gate, and HCG-standard stack conventions (Next.js App Router · MariaDB + Prisma · TanStack Query / Zustand / React Hook Form / Zod · feature-centric structure). The 5 packaged agents are generic, de-instanced templates: their frontmatter binds only portable skills and their body uses generic placeholders / project.md pointers. At install the consuming project adds its per-project skills (domain rules, E2E) and fills the placeholders by authoring .claude/project.md and per-project skills (docs/install.md §2). Paths, domain rules, and project-specific values live in the consuming project, not in this plugin.",
+  "author": {
+    "name": "HCG"
+  },
+  "homepage": "https://github.com/HCG/hcg-harness",
+  "keywords": [
+    "agents",
+    "subagents",
+    "harness",
+    "pipeline",
+    "verification",
+    "code-review",
+    "hooks",
+    "prisma",
+    "nextjs"
+  ]
+}
