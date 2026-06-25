@@ -12,6 +12,7 @@
 - 프레임워크: Next.js (App Router) + TypeScript(strict)
 - 스타일: Tailwind CSS
 - 서버 상태: TanStack Query · 전역 UI 상태: Zustand · 폼: React Hook Form · 검증: Zod
+- 테스트: 단위/통합 Vitest · E2E Playwright
 - DB: MariaDB · ORM: Prisma(`provider="mysql"`)
 - 복잡 로직 모듈(필요 시): Fastify(우선) / Express — `services/`
 - 패키지 매니저: <pnpm / npm / yarn>
@@ -29,7 +30,8 @@
 - `<예: my-domain>`  ← 프로젝트 불변 비즈니스 규칙을 담은 스킬(`.claude/skills/<domain>/SKILL.md`). 5개 에이전트 셸의 `skills:` 에 추가한다.
 
 ## 테스트 스킬
-- `<예: playwright-e2e>` (선택) ← E2E 스킬. front 셸의 `skills:` 에 추가한다.
+- 단위/통합: **Vitest** — 별도 스킬 불요(`*-conventions` 스킬이 규정). `package.json` 에 `"test": "vitest run"` 배선.
+- E2E: **Playwright** (HCG 표준) — `playwright-e2e` 스킬을 작성해 front 셸의 `skills:` 에 추가한다.
 
 ## 모델 배정
 - plan=opus  qa=opus  db=sonnet  backend=opus  frontend=opus

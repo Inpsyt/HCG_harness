@@ -136,9 +136,9 @@ Installing the bundle gives you empty-shells-with-pointers. The agents read
 
 Copy `templates/project.md` to `.claude/project.md` and fill every field. HCG
 stack defaults (Next.js App Router · MariaDB + Prisma · TanStack Query / Zustand
-/ React Hook Form / Zod · feature-centric) are pre-filled — adjust per project.
-`project.md` is **not** auto-injected; each agent Reads it on spawn, so it must
-exist before agents run.
+/ React Hook Form / Zod · Vitest + Playwright · feature-centric) are pre-filled —
+adjust per project. `project.md` is **not** auto-injected; each agent Reads it on
+spawn, so it must exist before agents run.
 
 ### 2b. Domain skill `.claude/skills/<domain>/SKILL.md`
 

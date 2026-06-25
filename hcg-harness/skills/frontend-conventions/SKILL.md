@@ -1,6 +1,6 @@
 ---
 name: frontend-conventions
-description: 프론트엔드/UI 작업의 포터블 컨벤션(HCG 표준) — contracts/design-guide·api-spec·shared-types를 SSOT로, Next.js App Router + React + Tailwind + TypeScript, 서버상태 TanStack Query·전역UI Zustand·폼 React Hook Form·검증 Zod, feature-centric 최소단위 컴포넌트, 반응형·다크모드·a11y·한글 타이포, 공유 타입 import 바인딩, contracts 읽기전용, 불일치는 TODO 보고. UI/컴포넌트 역할이 로드.
+description: 프론트엔드/UI 작업의 포터블 컨벤션(HCG 표준) — contracts/design-guide·api-spec·shared-types를 SSOT로, Next.js App Router + React + Tailwind + TypeScript, 서버상태 TanStack Query·전역UI Zustand·폼 React Hook Form·검증 Zod, feature-centric 최소단위 컴포넌트, 반응형·다크모드·a11y·한글 타이포, 테스트 Vitest(단위)·Playwright(E2E), 공유 타입 import 바인딩, contracts 읽기전용, 불일치는 TODO 보고. UI/컴포넌트 역할이 로드.
 ---
 
 # Frontend Conventions — 프론트엔드 스택 컨벤션 (HCG 표준 · 포터블)
@@ -26,11 +26,12 @@ UI 레이어의 스택 일반 방법론. 프로젝트 고유의 화면 구성·�
 - **다크 모드**: 라이트/다크 양 테마를 지원하며 SSR 하이드레이션 미스매치를 피한다(테마 토큰/클래스 일관).
 - **접근성(a11y)**: 시맨틱 마크업, 키보드 조작, 포커스 관리, role/aria 속성을 준수한다.
 - **타이포그래피**: 한글 타이포그래피(system font stack)를 고려한다.
+- **테스트**: 단위·컴포넌트·훅은 **Vitest**(+ Testing Library), E2E 는 **Playwright** 로 작성한다(HCG 표준). (Jest / Cypress 금지 — Vitest·Playwright 일관.) E2E 실천 상세는 프로젝트의 E2E 테스트 스킬(`project.md` 「테스트 스킬」 → `playwright-e2e`)을 따른다.
 
 ## 검증
 
 - 변경 후 `verification-ladder` 스킬의 사다리를 따른다 — 가능한 한 높은 rung으로 확인한다.
-- UI/디자인처럼 자동 검증이 어려운 변경은 rung-4(명시 수용기준 + diff + 사람=검증자)로 마무리하되, 가능한 부분은 타입/빌드/컴포넌트·훅 테스트(`features/{기능명}/__tests__/`)로 끌어올린다.
+- UI/디자인처럼 자동 검증이 어려운 변경은 rung-4(명시 수용기준 + diff + 사람=검증자)로 마무리하되, 가능한 부분은 타입/빌드/**Vitest 컴포넌트·훅 테스트**(`features/{기능명}/__tests__/`)로 끌어올린다. 핵심 사용자 플로우는 **Playwright E2E** 로 회귀를 잡는다.
 
 ## 불일치 처리
 

@@ -12,7 +12,7 @@ per-project.
 | HARNESS core | `hcg-harness/CLAUDE-core.md` | Pipeline ①–⑥ · fast-path gates · Operating Rules §0–§5 — project-invariant methodology. |
 | Agent shells (5) | `hcg-harness/agents/*.md` | Generic, de-instanced role templates. Frontmatter binds only portable skills; body uses generic placeholders / `project.md` pointers. Frontmatter `description` keeps a human-readable HCG-stack hint (not load-bearing). |
 | Process skills (4) | `hcg-harness/skills/{pipeline-phase,codex-review,verification-ladder,contract-authoring}/` | Phase lifecycle, codex gate, verification ladder, contract-authoring (format + SSOT discipline) — stack- and domain-neutral. |
-| Stack conventions (3) | `hcg-harness/skills/{db,backend,frontend}-conventions/` | **HCG-standard** stack methodology (Prisma/MariaDB · Next.js App Router · TanStack/Zustand/RHF/Zod · feature-centric). No project domain values. |
+| Stack conventions (3) | `hcg-harness/skills/{db,backend,frontend}-conventions/` | **HCG-standard** stack methodology (Prisma/MariaDB · Next.js App Router · TanStack/Zustand/RHF/Zod · Vitest/Playwright tests · feature-centric). No project domain values. |
 | Guard + verification hooks (4) | `hcg-harness/hooks/*.mjs` (+ `run-*.mjs` launchers, `*.test.mjs`, `hooks.json`) | PreToolUse contracts-lock + destructive-command guard · PostToolUse ESLint (+ opt-in tsc) · SessionStart context · Stop phase-gate advisory. Instance values (app dir, label, locks) externalized to env — 0 hardcoded project values. |
 | Workflow templates (5) | `hcg-harness/workflows/*.js` | `audit` / `migrate` / `test-gen` / `review` / `converge` generic skeletons for dynamic-mode fan-out. |
 
@@ -22,7 +22,7 @@ per-project.
 |---|---|---|
 | Instance slot | `.claude/project.md` | The single slot — identity, stack, paths, contracts, model assignment, active agents, env keys. Template: `templates/project.md`. |
 | Domain skill | `.claude/skills/<domain>/SKILL.md` | Invariant business rules. Added to all 5 shells' `skills:`. |
-| Test/E2E skill | `.claude/skills/<e2e>/SKILL.md` | Optional. Added to the front shell. |
+| Test/E2E skill | `.claude/skills/<e2e>/SKILL.md` | Optional skill; HCG default = Playwright E2E. Added to the front shell. |
 | `CLAUDE.md` PROJECT section | `CLAUDE.md` | Project overview + `@.claude/CLAUDE-core.md` import. Template: `templates/CLAUDE.md`. |
 | Contracts | `contracts/*` | The blackboard SSOT (db-schema/api-spec/shared-types/design-guide). |
 | Codex gate wrapper | `scripts/codex-review.mjs` + `package.json` `codex:review` | The qa codex gate calls `pnpm codex:review <base_sha>`; copy `templates/codex-review.mjs` and wire it to codex-companion (install.md §2e). Not bundled — depends on the external codex plugin. |

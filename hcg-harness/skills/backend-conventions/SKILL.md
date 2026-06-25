@@ -1,6 +1,6 @@
 ---
 name: backend-conventions
-description: 백엔드/API 작업의 포터블 컨벤션(HCG 표준) — contracts/api-spec·shared-types를 SSOT로, Next.js App Router API Routes(얇게, features actions 호출), 기능별 actions.ts에 로직, Prisma 데이터 접근, Zod 입력 검증, 변경 후 tsc/lint/build/test 검증, contracts 읽기전용, 불일치는 TODO 보고. API/서비스 로직 역할이 로드.
+description: 백엔드/API 작업의 포터블 컨벤션(HCG 표준) — contracts/api-spec·shared-types를 SSOT로, Next.js App Router API Routes(얇게, features actions 호출), 기능별 actions.ts에 로직, Prisma 데이터 접근, Zod 입력 검증, 변경 후 tsc/lint/build + Vitest 테스트 검증, contracts 읽기전용, 불일치는 TODO 보고. API/서비스 로직 역할이 로드.
 ---
 
 # Backend Conventions — 백엔드 스택 컨벤션 (HCG 표준 · 포터블)
@@ -26,7 +26,7 @@ API·서비스 레이어의 스택 일반 방법론. 프로젝트 고유의 비�
 ## 검증
 
 - 변경 후 `verification-ladder` 스킬의 사다리를 따른다 — 가능한 한 높은 rung으로 확인한다. 백엔드 기본 게이트: **tsc(타입) / lint / build / test** clean.
-- 정의 가능한 I/O가 있으면 자동화 테스트(rung-1)를 우선한다 — `features/{기능명}/__tests__/actions.test.ts`(DB CRUD·에러 처리·입력 검증).
+- 정의 가능한 I/O가 있으면 자동화 테스트(rung-1)를 우선한다 — **Vitest**(HCG 표준 단위/통합 러너)로 `features/{기능명}/__tests__/actions.test.ts`(DB CRUD·에러 처리·입력 검증)를 작성한다. (Jest/Mocha 금지 — Vitest 일관.)
 
 ## 불일치 처리
 

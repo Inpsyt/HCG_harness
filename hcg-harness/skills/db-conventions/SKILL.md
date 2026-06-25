@@ -29,7 +29,7 @@ description: 데이터베이스 작업의 포터블 컨벤션(HCG 표준) — co
 ## 검증
 
 - 변경 후 `verification-ladder` 스킬의 사다리를 따른다 — 가능한 한 높은 rung(자동화 테스트 → 빌드/타입 → 스모크 → 수용기준)으로 확인한다.
-- `prisma validate` / `prisma generate` 가 clean 한지 확인하고, 가능한 I/O 는 `features/{기능명}/__tests__/` 의 테스트로 끌어올린다.
+- `prisma validate` / `prisma generate` 가 clean 한지 확인하고, 가능한 I/O 는 **Vitest**(HCG 표준 단위/통합 러너)로 `features/{기능명}/__tests__/` 테스트로 끌어올린다.
 
 ## 불일치 처리
 

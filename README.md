@@ -7,8 +7,8 @@ slot** (`.claude/project.md`) + a domain skill — no harness re-authoring.
 
 Extracted from an existing in-repo harness and re-aligned to the **HCG
 standard stack** (Next.js App Router · MariaDB + Prisma · TanStack Query /
-Zustand / React Hook Form / Zod · feature-centric structure). See
-`HCG-Framework.md` (one level up) for the full HCG standard.
+Zustand / React Hook Form / Zod · Vitest + Playwright · feature-centric
+structure). See `HCG-Framework.md` (one level up) for the full HCG standard.
 
 ## What's inside
 
@@ -57,6 +57,7 @@ Full steps (including the copy-only fallback and instance-slot authoring):
 ## Customizing the stack
 
 The `*-conventions` skills encode the HCG standard stack. If a project diverges
-(different ORM, DB, or state libraries), edit those three skills — they are the
-single place stack methodology lives. Paths and domain rules never go in the
-skills; they go in `.claude/project.md` and the domain skill.
+(different ORM, DB, state, or test libraries — e.g. swapping Vitest/Playwright),
+edit those three skills — they are the single place stack methodology lives.
+Paths and domain rules never go in the skills; they go in `.claude/project.md`
+and the domain skill.

@@ -81,11 +81,13 @@ const MAX_MODULES = 100        // fail-closed UPPER BOUND on modules per run (F9
 // CUSTOMIZE: how generated test files are named/located, and how the suite is run.
 // Defaults defer to .claude/project.md and the project's existing test conventions.
 const TEST_CONVENTION =
-  "Follow the project's existing test conventions (framework, file location, naming) as described " +
-  "in .claude/project.md / the test skill. If none exist, co-locate as `<module>.test.<ext>`."
+  "Follow the project's test conventions in .claude/project.md / the test skill. HCG default: " +
+  "unit/integration with Vitest, co-located as `features/{feature}/__tests__/<module>.test.ts` " +
+  "(use `.test.tsx` when the test renders JSX/components); E2E with Playwright. " +
+  "If the project overrides these, follow the project."
 const RUN_TESTS_INSTRUCTION =
-  "Run the project's test command (see .claude/project.md 「주요 명령어」 / package scripts) scoped " +
-  "to this module's generated test file."
+  "Run the project's test command (HCG default: `vitest run <path>`; see .claude/project.md " +
+  "「주요 명령어」 / package scripts) scoped to this module's generated test file."
 
 // CUSTOMIZE: how the caller materializes each generated test file from its per-module worktree into
 // the working tree. The runtime does NOT auto-merge worktree writes (see CONFIRMED semantics above),
