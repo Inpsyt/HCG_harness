@@ -1,11 +1,12 @@
 # Workflow templates (dynamic-mode fan-out scaffolds)
 
 > **Dynamic-mode workflow templates (additive, non-destructive).**
-> Four reusable **Workflow** fan-out templates for the harness's *dynamic
+> Five reusable **Workflow** fan-out templates for the harness's *dynamic
 > execution mode* — the mode used when work is **independent · bulk · discovery-
 > shaped** (codemods, mass migrations, per-module test generation, read-only
-> audits/research, diff reviews), as opposed to the *static mode* (tightly-coupled
-> features run through the plan→db/be/fe→qa pipeline).
+> audits/research, diff reviews, contracts↔code drift reconciliation), as opposed
+> to the *static mode* (tightly-coupled features run through the plan→db/be/fe→qa
+> pipeline).
 >
 > These ship inside the portable `hcg-harness` plugin bundle and are **generic,
 > runnable skeletons**: the load-bearing `.js` templates carry zero source-project
@@ -20,6 +21,7 @@
 | `migrate` | `migrate.js` | bulk codemod: Discover → pipeline transform + **co-located self-check** (worktree-isolated) → aggregate gate (fail-closed; `verify.gates` normalized to an array before any method, so a non-array `gates` fails closed as malformed-gates, never a crash — F13) | Yes — isolated + disjoint |
 | `test-gen` | `test-gen.js` | per-module tests: Discover → parallel generate + **co-located suite run** (worktree-isolated) → aggregate (fail-closed) | Yes — isolated + disjoint |
 | `review` | `review.js` | read-oriented **code-review** fan-out over a changeset: Scope (resolve diff + dimensions) → parallel reviewers (each finding tagged KIND gating/non-gating per codex D9) → adversarial verify of GATING findings → synthesize a PASS/FAIL gate verdict + non-gating appendix. **Fail-closed:** a degraded reviewer/verifier or an over-cap/dropped dimension forces `verdict:'incomplete'` (never a false PASS); the final verdict is code-overridden to `fail` on any confirmed gating finding. **Deliberately lighter** than audit's multi-round hardening (anti-over-design — §6). | **No file edits** — `agentType:'Explore'` runtime-blocks Edit/Write/NotebookEdit (Bash advisory) |
+| `converge` | `converge.js` | read-oriented **contracts↔code drift** reconciliation (Spec Kit `/converge` analog): Scope (locate contract files + map to impl surfaces) → parallel reconcilers (classify each contract requirement `satisfied`/`partial`/`missing`/`contradicts`) → adversarial verify each drift (drop false positives) → synthesize `verdict` (aligned/drift/incomplete) + **proposed reconciliation tasks** for the plan role. **Fail-closed:** degraded reconciler/verifier, over-cap, or **missing contracts/ dir** → `incomplete`, never a false `aligned`. Proposes tasks; does NOT write them. | **No file edits** — `agentType:'Explore'` runtime-blocks Edit/Write/NotebookEdit (Bash advisory) |
 
 ---
 
@@ -80,7 +82,7 @@ A workflow script is an **ES module** with:
 
 **Invoke** a discovered workflow by name:
 ```
-Workflow({ name: 'audit' | 'migrate' | 'test-gen', args: '<scope / spec>' })
+Workflow({ name: 'audit' | 'migrate' | 'test-gen' | 'review' | 'converge', args: '<scope / spec>' })
 ```
 (Run an arbitrary script file ad hoc with `Workflow({ scriptPath: '<file>' })`.)
 

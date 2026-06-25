@@ -23,7 +23,7 @@ hcg_harness/                         # repo = single-plugin marketplace
 │  │  ├─ pipeline-phase · codex-review · verification-ladder · contract-authoring  # process (stack-neutral)
 │  │  └─ db- · backend- · frontend-conventions                                     # HCG-standard stack
 │  ├─ hooks/                         # PreToolUse contracts+destructive guard · PostToolUse lint · SessionStart context · Stop phase-gate (+ launchers · *.test.mjs)
-│  └─ workflows/                     # audit · migrate · test-gen · review (dynamic-mode templates)
+│  └─ workflows/                     # audit · migrate · test-gen · review · converge (dynamic-mode templates)
 ├─ templates/project.md              # the instance-slot template (HCG defaults)
 └─ docs/
    ├─ install.md                     # install + fill-the-slot guide

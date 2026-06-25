@@ -14,7 +14,7 @@ per-project.
 | Process skills (4) | `hcg-harness/skills/{pipeline-phase,codex-review,verification-ladder,contract-authoring}/` | Phase lifecycle, codex gate, verification ladder, contract-authoring (format + SSOT discipline) — stack- and domain-neutral. |
 | Stack conventions (3) | `hcg-harness/skills/{db,backend,frontend}-conventions/` | **HCG-standard** stack methodology (Prisma/MariaDB · Next.js App Router · TanStack/Zustand/RHF/Zod · feature-centric). No project domain values. |
 | Guard + verification hooks (4) | `hcg-harness/hooks/*.mjs` (+ `run-*.mjs` launchers, `*.test.mjs`, `hooks.json`) | PreToolUse contracts-lock + destructive-command guard · PostToolUse ESLint (+ opt-in tsc) · SessionStart context · Stop phase-gate advisory. Instance values (app dir, label, locks) externalized to env — 0 hardcoded project values. |
-| Workflow templates (4) | `hcg-harness/workflows/*.js` | `audit` / `migrate` / `test-gen` / `review` generic skeletons for dynamic-mode fan-out. |
+| Workflow templates (5) | `hcg-harness/workflows/*.js` | `audit` / `migrate` / `test-gen` / `review` / `converge` generic skeletons for dynamic-mode fan-out. |
 
 ## Per-project (the consuming project authors)
 
@@ -26,6 +26,7 @@ per-project.
 | `CLAUDE.md` PROJECT section | `CLAUDE.md` | Project overview + `@.claude/CLAUDE-core.md` import. Template: `templates/CLAUDE.md`. |
 | Contracts | `contracts/*` | The blackboard SSOT (db-schema/api-spec/shared-types/design-guide). |
 | Codex gate wrapper | `scripts/codex-review.mjs` + `package.json` `codex:review` | The qa codex gate calls `pnpm codex:review <base_sha>`; copy `templates/codex-review.mjs` and wire it to codex-companion (install.md §2e). Not bundled — depends on the external codex plugin. |
+| CI contract-drift gate | CI config (e.g. `.github/workflows/contracts.yml`) | Deterministic contract↔code drift checks (`tsc` · `prisma validate`/`migrate diff` · OpenAPI lint · token lint). Template: `templates/ci-contract-drift.md`. Semantic drift → the `converge` workflow. |
 | App + DB | `apps/web`, `prisma/`, … | The actual product code. |
 
 ## Residual install-time seams
@@ -52,11 +53,24 @@ Genericized so a fresh install needs **no source edits**, only configuration:
 - **Agent skills** — add per-project `<domain>` / E2E skills to the shells'
   `skills:` frontmatter (install.md §2d).
 
-> **Verified limit (contracts-guard):** the PreToolUse payload carries no agent
-> identifier, so the lock keys on intent (`HARNESS_CONTRACTS_WRITE`), not on
-> "which agent is calling". Whether PreToolUse fires for *subagent* tool calls is
-> undocumented in Claude Code — confirm end-to-end subagent coverage as a rung-4
-> install check.
+> **Verified limit (contracts-guard) — re-confirmed 2026-06-25:** the PreToolUse
+> payload (`session_id`, `transcript_path`, `cwd`, `permission_mode`,
+> `hook_event_name`, `tool_name`, `tool_input`) carries **no agent identifier**
+> (current Claude Code docs), and no indirect field is documented to distinguish
+> subagents — so true per-agent enforcement is **not possible from a hook today**.
+> The lock therefore correctly keys on intent (`HARNESS_CONTRACTS_WRITE`), not on
+> "which agent is calling". (Per-agent enforcement would need an Anthropic feature
+> request — an `agent_type`/`agent_id` field in the payload.) Whether PreToolUse
+> fires for *subagent* tool calls is also undocumented — confirm end-to-end
+> subagent coverage as a rung-4 install check.
+>
+> **Hooks are guardrails, not a security boundary.** The regex destructive-guard is
+> evadable (e.g. `find -delete`, `psql -f`, a child-process) — Anthropic and Trail
+> of Bits are explicit that hooks are "guardrails, not walls". For a real
+> enforcement boundary, run Claude Code with **`/sandbox`** (OS-level Seatbelt /
+> bubblewrap): it enforces deny rules at the OS level, whereas Bash bypasses hook
+> denies without it. Treat the harness hooks + git-worktree isolation as
+> defense-in-depth *above* a sandbox, not a replacement for one.
 
 ## Drift caveat (additive install)
 

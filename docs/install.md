@@ -6,7 +6,7 @@
 >
 > The harness ships the portable layer only: 5 agent shells, 7 portable skills
 > (4 process + 3 HCG-stack conventions), 4 hooks (PreToolUse contracts+destructive
-> guard · PostToolUse lint · SessionStart context · Stop phase-gate), 4 workflow
+> guard · PostToolUse lint · SessionStart context · Stop phase-gate), 5 workflow
 > templates, and the HARNESS methodology core (`CLAUDE-core.md`). Project paths,
 > domain rules, the codex-gate wrapper, and per-project skills live in the
 > **consuming** project.
@@ -44,7 +44,7 @@ claude plugin marketplace add <path-to>/hcg_harness
 # 3. install the plugin
 claude plugin install hcg-harness@hcg-harness-marketplace
 
-# 4. confirm the loaded inventory (5 agents + 7 skills + 4 hooks + 4 workflows)
+# 4. confirm the loaded inventory (5 agents + 7 skills + 4 hooks + 5 workflows)
 claude plugin list
 claude plugin details hcg-harness
 ```
@@ -52,13 +52,13 @@ claude plugin details hcg-harness
 This layers the agent shells, skills, hooks, and workflow templates on top of
 the project's own `.claude/` **without overwriting** anything in it.
 
-The bundled **4 workflow templates** (`audit` / `migrate` / `test-gen` / `review`)
-live in the plugin's auto-discovered `workflows/` dir; once installed they are
-loadable as named workflows —
-`Workflow({ name: 'audit' | 'migrate' | 'test-gen' | 'review', args })` — for
-independent · bulk · read-only work that does not fit the static pipeline
-(`review` = a read-only code-review fan-out over a diff, with codex-D9
-gating/non-gating split).
+The bundled **5 workflow templates** (`audit` / `migrate` / `test-gen` / `review` /
+`converge`) live in the plugin's auto-discovered `workflows/` dir; once installed
+they are loadable as named workflows —
+`Workflow({ name: 'audit' | 'migrate' | 'test-gen' | 'review' | 'converge', args })`
+— for independent · bulk · read-only work that does not fit the static pipeline
+(`review` = a read-only code-review fan-out over a diff with codex-D9 gating split;
+`converge` = a read-only contracts↔code drift reconciliation that proposes tasks).
 They are generic skeletons; inject project specifics via `args` + `.claude/project.md`.
 (Workflows must be enabled in the consuming project — gated by `disableWorkflows`
 / env `CLAUDE_CODE_DISABLE_WORKFLOWS`.)
@@ -221,7 +221,8 @@ than a false PASS.
 | Agent resolves slot | Spawn an agent; confirm it Reads `.claude/project.md` and the `<domain>` skill |
 | Lint hook fires | Edit a `*.ts` under the app dir → PostToolUse runs ESLint; new session → SessionStart injects phase/issue context |
 | Contracts lock fires | Try to Edit `contracts/*` without `HARNESS_CONTRACTS_WRITE=1` → PreToolUse denies it (set the env only for deliberate authoring). NB: whether PreToolUse fires for *subagent* calls is undocumented — verify in your env |
-| Destructive guard fires | A Bash `rm -rf /` or `prisma migrate reset` is denied unless `HARNESS_DISABLE_DESTRUCTIVE_GUARD=1` |
+| Destructive guard fires | A Bash `rm -rf /` or `prisma migrate reset` is denied unless `HARNESS_DISABLE_DESTRUCTIVE_GUARD=1`. NB: this is a regex guard (evadable — `find -delete`, `psql -f`); it is defense-in-depth, not a wall |
+| Real enforcement boundary | Hooks are guardrails, not a security boundary. For OS-level enforcement run Claude Code with `/sandbox` (Seatbelt/bubblewrap) — without it, Bash bypasses hook denies. See `portable-instance-boundary.md` |
 | Phase-gate at Stop | With an in-progress, un-gated phase in `tasks/phase-meta.yml`, ending the session warns (or blocks if `HARNESS_PHASE_GATE_BLOCK=1`) |
 | Hook app dir | If your source root is not `apps/web`, set `POST_EDIT_VERIFY_APP_DIR` (e.g. `.`, `web`, or a comma-separated list); else the lint hook silently no-ops |
 | Type-check gate | Optional: `POST_EDIT_VERIFY_TSC=1` adds a project `tsc --noEmit` after a clean lint |

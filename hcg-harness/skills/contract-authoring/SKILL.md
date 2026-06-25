@@ -16,6 +16,8 @@ description: 공유 계약서(contracts/) 작성·갱신의 포터블 규약 —
 | `contracts/shared-types.ts` | 공유 TypeScript 인터페이스(요청·응답·이벤트·DTO) | **실 코드(.ts)** — typed SSOT |
 | `contracts/design-guide.md` | 디자인 토큰·색상값(CSS 변수)·배지 매핑 | 산문 + 토큰 표 |
 
+> 산문은 *모호성 제거용 최소 tier* 일 뿐이다. **프로덕션·장수명 계약은 가능한 한 머신 체크 가능 형태가 기본**(↓ 기계 검증 tier): db-schema↔`prisma/schema.prisma`, api-spec→OpenAPI/Zod, shared-types=`.ts`.
+
 ## 작성 규율
 
 - **shared-types.ts 가 타입 SSOT 다.** 요청·응답·이벤트 타입은 여기 한 곳에 정의하고 구현은 **그대로 import** 한다(재정의·복제 금지). `.ts` 라서 `tsc` 가 드리프트를 잡는 유일한 계약 — 가능한 모든 형태를 산문이 아니라 타입으로 표현해 기계 검증 표면을 넓힌다.
@@ -24,6 +26,20 @@ description: 공유 계약서(contracts/) 작성·갱신의 포터블 규약 —
   - API: 가능하면 `api-spec.md` 의 Request/Response 를 **Zod 스키마 또는 OpenAPI** 로도 표현해(또는 `shared-types.ts` 의 타입을 SSOT 로 삼아 런타임 Zod 를 파생) 기계 검증이 가능하게 한다. 순수 산문만 두면 검증은 qa 의 수동 대조에만 의존한다.
 - **design-guide 색상값이 SSOT 다.** 색상·배지 매핑은 CSS 변수로 정의하고 프론트는 하드코딩 금지(변수만 사용).
 - **요청/응답은 1:1.** api-spec 에 정의된 스키마와 구현 I/O 가 정확히 매핑되어야 한다.
+
+## 기계 검증 tier · CI drift 게이트
+
+산문 대조는 qa 의 수동 작업에만 의존한다. **프로덕션·장수명 계약은 머신 체크 tier 를 기본**으로 두어 드리프트를 자동·결정적으로 잡는다(spec-driven 문헌: 산문 design doc 은 강제 불가). 계약별 권장 머신 체크:
+
+| 계약 | 머신 체크 형태 | CI 게이트 |
+|---|---|---|
+| db-schema | `prisma/schema.prisma` 가 정본, `db-schema.md` 는 사람용 미러 | `prisma validate` + `prisma migrate diff`(스키마↔마이그레이션 정합) |
+| api-spec | **OpenAPI** 문서 또는 `shared-types.ts` 에서 파생한 **Zod** | route 핸들러를 Zod/OpenAPI 로 검증하는 계약 테스트 |
+| shared-types | `.ts` 자체가 머신 체크(typed SSOT) | `tsc --noEmit`(구현이 타입을 그대로 import) |
+| design-guide | CSS 변수 토큰 | 하드코딩 색상값 lint(변수만 허용) |
+
+**CI drift 게이트**: 위 결정적 체크를 CI 에 묶어 계약↔코드가 어긋나면 **빌드를 실패**시킨다. 템플릿·배선: `templates/ci-contract-drift.md`. 결정적 체크가 못 잡는 *의미적* drift(누락·모순)는 `converge` 워크플로로 보완한다(read-only, 제안 task 산출).
+> ⚠ "코드를 스펙에서 100% 재생성, 손수정 금지" 까지는 가지 않는다(과함) — 계약을 *권위*로 두고 머신 체크 + drift 게이트로 정합을 강제하는 *point-in-time 조정* 모델.
 
 ## 변경 절차 (계약은 잠금 자원)
 

@@ -19,16 +19,18 @@ skills:
 - **도메인 규칙(정렬·코드·마커·검색/결과 우선순위 등)은 프로젝트의 도메인 스킬(`.claude/project.md` 「도메인 스킬」 필드가 가리키는 스킬)을 읽고 따른다** (요구사항·Task 작성 시 도메인 기준).
 
 ## 역할
-1. 요구사항을 분석하여 구체적인 Task로 분해하고 **MoSCoW(Must/Should/Could/Won't)** 로 분류 (↓ Phase 0)
+1. 요구사항의 **모호성을 먼저 해소(Clarify)** 하고 구체적 Task로 분해, **MoSCoW(Must/Should/Could/Won't)** 로 분류 (↓ Phase 0)
 2. `contracts/` 폴더에 공유 계약서를 작성·관리 (포맷·SSOT 규율은 `contract-authoring` 스킬)
 3. `tasks/` 폴더에 에이전트별 Task 할당
 4. QA Agent가 보고한 이슈를 확인하고 수정 Task 재생성
 
 ## 워크플로우
 
-### Phase 0: 요구사항 분해 + MoSCoW 분류 (선행)
+### Phase 0: Clarify(모호성 해소) → 요구사항 분해 + MoSCoW 분류 (선행)
 
-요구사항을 Task 로 분해하면서 각 항목을 **MoSCoW** 로 분류한다 — 스코프 경계·릴리스 규율의 단일 기준:
+**Clarify 먼저 (Spec Kit `/clarify` analog).** 분해·계약 작성 전에 요구사항의 *모호성·미명세*를 해소한다 — 충돌하는 해석, 빠진 수용 기준, 미정의 경계를 나열하고 (Operating Rules §1로 판정): 되돌리기 쉽고 틀려도 싼 결정은 **가정을 명시하고 진행**, 되돌리기 어렵거나 비싼 결정(스키마·계약·auth·데이터 삭제/이관·결제·외부 부작용)은 **사용자에게 질문**한다. **미해소 모호성을 안고 계약을 쓰지 않는다.**
+
+그 뒤 요구사항을 Task 로 분해하면서 각 항목을 **MoSCoW** 로 분류한다 — 스코프 경계·릴리스 규율의 단일 기준:
 
 - **Must** — 없으면 이번 릴리스 실패. 게이트 대상.
 - **Should** — 중요하나 빠져도 릴리스 성립. 가능하면 포함.
@@ -52,6 +54,16 @@ plan-agent 고유의 추가 규약만 여기서 명시한다:
 
 - **base_sha 핸드오프**: plan-agent 는 Bash 미보유(read-only)라 git 을 직접 실행하지 않는다. Phase 선언 직전 HEAD 는 Bash 가능 주체(오케스트레이터/Bash 보유 에이전트)가 `git rev-parse HEAD` 로 캡처해 제공하고, plan-agent 는 phase-meta 에 **기록만** 한다. (상세·근거: `pipeline-phase` 스킬.)
 - **Task 작성 기준**: `.claude/project.md` 「경로」「활성 에이전트」 + 도메인 스킬을 단일 출처로 Task 를 분해한다. 해당 레이어가 비활성이면 그 에이전트 섹션은 생략한다.
+
+#### Analyze 게이트 (구현 dispatch 전 필수 — Spec Kit `/analyze` analog)
+
+db/backend/front 에 Task 를 넘기기 **전에 교차 아티팩트 일관성을 1회 점검**한다 — 통과해야 dispatch:
+
+1. **커버리지**: 모든 Must 요구사항이 ≥1 Task 로 덮였는가? 모든 Task 가 요구사항/계약에 매핑되는가(고아 Task 0)?
+2. **계약 정합**: `contracts/` 간 모순 없는가 — 같은 엔티티의 타입·이름이 db-schema ↔ `shared-types.ts` ↔ api-spec 에서 일치하는가?
+3. **경계**: Task 가 활성 에이전트·계약 범위를 벗어나지 않는가?
+
+불일치 시 dispatch 를 멈추고 계약/Task 를 고친 뒤 재점검한다(모호성이면 Phase 0 Clarify 로 되돌린다). 기존 코드베이스의 contracts↔code drift 가 의심되면 `converge` 워크플로로 별도 확인한다.
 
 ### Phase 3: 이슈 대응
 
