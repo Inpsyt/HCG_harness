@@ -79,3 +79,35 @@ its own `.claude/` and edits them, those copies **drift** from this package —
 edits here do not propagate and vice-versa. Eliminating drift means canonical
 adoption (the project consumes the plugin as its single source). Until then,
 treat this package as the upstream and re-pull rather than diverging.
+
+## Known limitations (documented honestly — not defects)
+
+Deliberate scope boundaries / platform constraints, surfaced so a consuming
+project adopts with eyes open:
+
+- **Hooks are guardrails, not a security boundary** — the PreToolUse guards are
+  evadable (`find -delete`, `psql -f`, child-process) and key on intent (no agent
+  identity in the payload, re-verified 2026-06-25). Run with `/sandbox` for a real
+  OS-level boundary (see the contracts-guard note above).
+- **Plugin-method per-agent enforcement is limited** — Claude Code ignores the
+  `hooks` / `mcpServers` / `permissionMode` frontmatter on *plugin* subagents, so
+  per-agent hooks/permissions can't be enforced by the plugin itself; they fall to
+  session-level `settings.json` (coarse) or copied `.claude/agents/` (loses
+  single-source portability). [official sub-agents docs]
+- **No built-in cost / token budgeting or observability** — workflows cap fan-out
+  size (`MAX_DIMENSIONS` / `MAX_WORK_ITEMS` …) but there is no token accounting,
+  cost cap, or tracing; wire your platform's observability if needed.
+- **Performance/scalability is not benchmarked** — phase runtimes, safe project
+  size, and parallelization overhead are unmeasured; the caps are safety bounds,
+  not tuned values.
+- **Workflow runtime contract is version-pinned** — verified against Claude Code
+  CLI 2.1.183 (`workflows/README`); field names / behaviors may drift on other
+  versions — re-confirm on upgrade (rung-4).
+- **Agent self-reports are prompt-driven** — the fail-closed guards constrain and
+  cross-check self-reported data but cannot prove an agent did on disk exactly what
+  it reported; the ultimate guarantee rests on runtime/VCS verification + your CI.
+- **Deferred (design-first / gated)** — HITL approve/edit/respond + resumable
+  execution-state checkpoints (platform-dependent); machine-checkable contracts are
+  *prescribed*, not enforced-by-default (wire `templates/ci-contract-drift.md`);
+  sequential→graph dispatch and per-agent enforcement repackaging await
+  re-verification (benchmark review Open Q #1·#2).
