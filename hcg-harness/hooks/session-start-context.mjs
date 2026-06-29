@@ -26,7 +26,7 @@
 //                               (default "[harness session context]"). Set it
 //                               to your project name, e.g. "[acme session context]".
 
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -190,6 +190,18 @@ export function formatContext(phases, issues, label = DEFAULT_LABEL) {
   return lines.join("\n");
 }
 
+export function markerExists(projectRoot, fs = { existsSync }) {
+  return fs.existsSync(path.join(projectRoot, ".claude", ".hcg-harness.json"));
+}
+
+export function formatBootstrapHint(label) {
+  return [
+    label,
+    "- 상태: 이 프로젝트는 아직 HCG 하네스로 부트스트랩되지 않았습니다.",
+    "- 다음 단계: `/hcg-init` 를 실행해 프레임워크를 선택하고 하네스 + 앱 골격을 생성하세요.",
+  ].join("\n");
+}
+
 function safeRead(file) {
   try {
     return readFileSync(file, "utf8");
@@ -202,6 +214,11 @@ async function main() {
   const projectRoot =
     process.env.SESSION_START_PROJECT_ROOT || DEFAULT_PROJECT_ROOT;
   const label = process.env.SESSION_CONTEXT_LABEL || DEFAULT_LABEL;
+
+  if (!markerExists(projectRoot, { existsSync })) {
+    process.stdout.write(`${formatBootstrapHint(label)}\n`);
+    process.exit(0);
+  }
 
   let phases = [];
   let issues = [];

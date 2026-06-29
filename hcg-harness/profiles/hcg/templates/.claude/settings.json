@@ -1,0 +1,6 @@
+{
+  "env": {
+    "POST_EDIT_VERIFY_APP_DIR": "{{APP_DIR}}",
+    "SESSION_CONTEXT_LABEL": "[{{PROJECT_NAME}} session context]"
+  }
+}

@@ -112,3 +112,16 @@ test("formatContext: phase with missing title falls back", () => {
   const out = formatContext([{ id: 5 }], [], "[x]");
   assert.match(out, /Phase 5: \(제목 없음\)/);
 });
+
+import { markerExists, formatBootstrapHint } from "./session-start-context.mjs";
+
+test("markerExists true/false", () => {
+  assert.equal(markerExists("/p", { existsSync: () => true }), true);
+  assert.equal(markerExists("/p", { existsSync: () => false }), false);
+});
+
+test("formatBootstrapHint mentions /hcg-init", () => {
+  const s = formatBootstrapHint("[x]");
+  assert.match(s, /\/hcg-init/);
+  assert.match(s, /부트스트랩/);
+});
