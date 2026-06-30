@@ -1,75 +1,76 @@
-# Installing the HCG harness in a new project
+# 새 프로젝트에 HCG 하네스 설치하기
 
-> How an empty project (a) installs the **portable HCG harness** and (b) fills
-> the **instance slot** so the agent shells resolve to that project's paths,
-> stack, and domain rules.
+> 빈 프로젝트가 (a) **포터블 HCG 하네스**를 설치하고 (b) **인스턴스 슬롯**을 채워
+> 에이전트 셸이 그 프로젝트의 경로·스택·도메인 규칙으로 해소되게 하는 방법.
 >
-> The harness ships the portable layer: 5 agent shells, 7 portable skills
-> (4 process + 3 HCG-stack conventions), 4 hooks (PreToolUse contracts+destructive
-> guard · PostToolUse lint · SessionStart context · Stop phase-gate), 5 workflow
-> templates, 2 commands (`init` · `upgrade` → `/hcg-harness:init` · `:upgrade`), the bootstrap engine
-> (`scripts/bootstrap.mjs`), the HCG profile (`profiles/hcg/`), and the HARNESS
-> methodology core (`CLAUDE-core.md`). Project paths, domain rules, the
-> codex-gate wrapper, and per-project skills live in the **consuming** project.
+> 하네스는 포터블 레이어를 싣는다: 5개 에이전트 셸, 7개 포터블 스킬
+> (프로세스 4 + HCG 스택 컨벤션 3), 4개 hook (PreToolUse 계약+파괴 가드 ·
+> PostToolUse lint · SessionStart 컨텍스트 · Stop phase-gate), 5개 워크플로 템플릿,
+> 2개 커맨드(`init` · `upgrade` → `/hcg-harness:init` · `:upgrade`), 부트스트랩 엔진
+> (`scripts/bootstrap.mjs`), HCG 프로파일(`profiles/hcg/`), HARNESS 방법론 코어
+> (`CLAUDE-core.md`). 프로젝트 경로·도메인 규칙·codex 게이트 래퍼·프로젝트별 스킬은
+> **소비 프로젝트**에 둔다.
 
 ---
 
-## 0. Prerequisites
+## 0. 요구사항
 
-- **Claude Code CLI** — to install the plugin + invoke `/hcg-harness:init`.
-- **Node.js 20+** (LTS; verified on 22) on PATH — the hooks and bootstrap engine are `.mjs`.
-- **pnpm 9+** (verified on 10) — the HCG profile's package manager; the generated
-  `setupCommands` use pnpm. (pnpm 10+ blocks postinstall build scripts by default —
-  run `pnpm approve-builds` before `pnpm prisma generate`.)
-- **git** — for the codex gate (base_sha diff) and the worktree-isolated workflows
-  (`migrate` / `test-gen`).
-- The harness source — this repo (`hcg_harness/`), or a git repo hosting
-  `.claude-plugin/marketplace.json`.
-- **MariaDB/MySQL** — only when running the app against a real DB (Prisma
-  migrate/connect); not needed for bootstrap or `pnpm build`.
+- **Claude Code CLI** — 플러그인 설치 + `/hcg-harness:init` 호출용.
+- **Node.js 20+** (LTS · 검증 22) PATH 등록 — hook과 부트스트랩 엔진이 `.mjs`.
+- **pnpm 9+** (검증 10) — HCG 프로파일의 패키지 매니저; 생성되는 `setupCommands`가 pnpm 사용.
+  (pnpm 10+는 postinstall 빌드 스크립트를 기본 차단 — `pnpm prisma generate` 전에
+  `pnpm approve-builds` 실행.)
+- **git** — codex 게이트(base_sha diff)와 worktree 격리 워크플로(`migrate`/`test-gen`)용.
+- 하네스 소스 — 이 레포(`hcg_harness/`), 또는 `.claude-plugin/marketplace.json`을
+  호스팅하는 git 레포.
+- **MariaDB/MySQL** — 앱을 실제 DB에 연결(Prisma migrate/connect)할 때만 필요;
+  부트스트랩·`pnpm build`엔 불요.
 
 ---
 
-## 1. Install the portable bundle
+## 1. 포터블 번들 설치
 
-Two mechanisms. **A (plugin)** is the recommended, version-able path; **B (copy)**
-is a zero-tooling fallback.
+두 방법. **A(플러그인)**가 권장·버전관리 가능 경로, **B(복사)**는 무툴링 폴백.
 
-### A. As a Claude Code plugin (recommended)
+### A. Claude Code 플러그인으로 (권장)
 
-This repo is a single-plugin marketplace (`.claude-plugin/marketplace.json`)
-wrapping the plugin (`hcg-harness/.claude-plugin/plugin.json`).
+이 레포는 단일 플러그인 마켓플레이스(`.claude-plugin/marketplace.json`)가
+플러그인(`hcg-harness/.claude-plugin/plugin.json`)을 감싼 구조다.
 
 ```bash
-# 1. (optional) validate before installing
+# 1. (선택) 설치 전 검증
 claude plugin validate <path-to>/hcg_harness/hcg-harness --strict
 claude plugin validate <path-to>/hcg_harness --strict
 
-# 2. add the marketplace (local path, URL, or GitHub repo)
+# 2. 마켓플레이스 추가 (로컬 경로 · URL · GitHub 레포)
 claude plugin marketplace add <path-to>/hcg_harness
-#   …or from git:  claude plugin marketplace add <owner>/<repo>
+#   …또는 git에서:  claude plugin marketplace add <owner>/<repo>   (예: Inpsyt/HCG_harness)
 
-# 3. install the plugin
+# 3. 플러그인 설치
 claude plugin install hcg-harness@hcg-harness-marketplace
 
-# 4. confirm the loaded inventory (5 agents + 7 skills + 4 hooks + 5 workflows + 2 commands)
+# 4. 적재 인벤토리 확인 (5 agents + 7 skills + 4 hooks + 5 workflows + 2 commands)
 claude plugin list
 claude plugin details hcg-harness
 ```
 
-This layers the agent shells, skills, hooks, and workflow templates on top of
-the project's own `.claude/` **without overwriting** anything in it.
+> 로컬 경로 vs git 소스: **로컬 경로**는 작업 사본에 live-link되어 개발 중 편하지만
+> 그 폴더에 의존한다(폴더가 사라지면 못 씀). **git 소스**(`<owner>/<repo>`)는 푸시된
+> 커밋 상태를 가져오므로 다른 PC 설치·배포에 적합하다. 배포 시점엔 git 소스를 권장.
 
-The bundled **5 workflow templates** (`audit` / `migrate` / `test-gen` / `review` /
-`converge`) live in the plugin's auto-discovered `workflows/` dir; once installed
-they are loadable as named workflows —
+이는 에이전트 셸·스킬·hook·워크플로 템플릿을 프로젝트 자체의 `.claude/` 위에
+**덮어쓰지 않고** 얹는다.
+
+동봉된 **5개 워크플로 템플릿**(`audit` / `migrate` / `test-gen` / `review` /
+`converge`)은 플러그인이 자동 발견하는 `workflows/` 디렉터리에 있고, 설치되면 명명
+워크플로로 로드된다 —
 `Workflow({ name: 'audit' | 'migrate' | 'test-gen' | 'review' | 'converge', args })`
-— for independent · bulk · read-only work that does not fit the static pipeline
-(`review` = a read-only code-review fan-out over a diff with codex-D9 gating split;
-`converge` = a read-only contracts↔code drift reconciliation that proposes tasks).
-They are generic skeletons; inject project specifics via `args` + `.claude/project.md`.
-(Workflows must be enabled in the consuming project — gated by `disableWorkflows`
-/ env `CLAUDE_CODE_DISABLE_WORKFLOWS`.)
+— 정적 파이프라인에 안 맞는 독립·대량·읽기전용 작업용
+(`review` = diff에 대한 읽기전용 코드리뷰 fan-out + codex-D9 게이팅 분리;
+`converge` = 계약↔코드 드리프트 정합 + 태스크 제안, 읽기전용).
+generic 골격이므로 프로젝트 고유값은 `args` + `.claude/project.md`로 주입한다.
+(워크플로 기능은 소비 프로젝트에서 활성화돼야 함 — `disableWorkflows`
+/ env `CLAUDE_CODE_DISABLE_WORKFLOWS`로 게이트.)
 
 ### 자동 부트스트랩 (`/hcg-harness:init`, 권장)
 
@@ -79,23 +80,21 @@ They are generic skeletons; inject project specifics via `args` + `.claude/proje
 `/hcg-harness:upgrade`. 아래 §2 "수동 슬롯 채우기"는 부트스트랩을 쓰지 않거나 기존 프로젝트에
 얹을 때의 절차다.
 
-### B. Copy the layout (no plugin tooling)
+### B. 레이아웃 복사 (플러그인 툴링 없이)
 
 ```bash
 cp -r hcg-harness/agents/*       <new-project>/.claude/agents/
 cp -r hcg-harness/skills/*       <new-project>/.claude/skills/
 cp -r hcg-harness/hooks/*.mjs    <new-project>/.claude/hooks/
-cp -r hcg-harness/workflows/*.js <new-project>/.claude/workflows/   # optional
+cp -r hcg-harness/workflows/*.js <new-project>/.claude/workflows/   # 선택
 cp    hcg-harness/CLAUDE-core.md <new-project>/.claude/CLAUDE-core.md
 ```
 
-Then wire the hooks in the new project's `.claude/settings.json` `hooks` block.
-**Do not reference `hcg-harness/hooks/hooks.json` here** — that file is the
-**plugin-method wiring only**: its commands are
-`node "${CLAUDE_PLUGIN_ROOT}/hooks/run-*.mjs"`, and a copy install has no
-`${CLAUDE_PLUGIN_ROOT}`, so the path resolves to nothing and the hook fails to
-launch **before** it can fail-open. For the copy method, call the real hooks
-**directly**:
+그다음 새 프로젝트의 `.claude/settings.json` `hooks` 블록에 hook을 배선한다.
+**여기서 `hcg-harness/hooks/hooks.json`을 참조하지 말 것** — 그 파일은 **플러그인-방식
+배선 전용**이다: 명령이 `node "${CLAUDE_PLUGIN_ROOT}/hooks/run-*.mjs"`인데, 복사 설치엔
+`${CLAUDE_PLUGIN_ROOT}`가 없어 경로가 빈 값으로 해소되고 hook이 fail-open 하기도 **전에**
+실행 실패한다. 복사 방식에서는 실제 hook을 **직접** 호출한다:
 
 ```json
 {
@@ -134,40 +133,37 @@ launch **before** it can fail-open. For the copy method, call the real hooks
 }
 ```
 
-With the copy method the hooks live at `.claude/hooks/`, so each hook's default
-`path.resolve(__dirname, "..", "..")` resolves straight to the project root and
-`node .claude/hooks/<hook>.mjs` invokes it directly (its `invokedDirectly` guard
-fires). No `${CLAUDE_PLUGIN_ROOT}` and no `run-*.mjs` launcher needed (the `cp`
-also drops the `run-*.mjs` launchers, which are plugin-method only and simply
-unused here).
+복사 방식에서는 hook이 `.claude/hooks/`에 있어, 각 hook의 기본
+`path.resolve(__dirname, "..", "..")`가 곧장 프로젝트 루트로 해소되고
+`node .claude/hooks/<hook>.mjs`가 직접 호출한다(`invokedDirectly` 가드가 발동).
+`${CLAUDE_PLUGIN_ROOT}`도, `run-*.mjs` 런처도 필요 없다(`cp`가 `run-*.mjs` 런처도
+빼는데, 그것들은 플러그인-방식 전용이라 여기선 그냥 미사용).
 
 ---
 
-## 2. Fill the instance slot
+## 2. 인스턴스 슬롯 채우기
 
-Installing the bundle gives you empty-shells-with-pointers. The agents read
-`.claude/project.md` and the domain skill at spawn; author both.
+번들 설치만으로는 "포인터만 있는 빈 껍데기"를 얻는다. 에이전트는 spawn 시
+`.claude/project.md`와 도메인 스킬을 Read하므로, 둘 다 작성한다.
 
 ### 2a. `.claude/project.md`
 
-Copy `templates/project.md` to `.claude/project.md` and fill every field. HCG
-stack defaults (Next.js App Router · MariaDB + Prisma · TanStack Query / Zustand
-/ React Hook Form / Zod · Vitest + Playwright · feature-centric) are pre-filled —
-adjust per project. `project.md` is **not** auto-injected; each agent Reads it on
-spawn, so it must exist before agents run.
+`templates/project.md`를 `.claude/project.md`로 복사하고 모든 필드를 채운다. HCG 스택
+기본값(Next.js App Router · MariaDB + Prisma · TanStack Query / Zustand / React Hook
+Form / Zod · Vitest + Playwright · feature-centric)이 미리 채워져 있으니 프로젝트에 맞게
+조정한다. `project.md`는 **자동 주입되지 않는다** — 각 에이전트가 spawn 시 Read하므로,
+에이전트 실행 전에 반드시 존재해야 한다.
 
-### 2b. Domain skill `.claude/skills/<domain>/SKILL.md`
+### 2b. 도메인 스킬 `.claude/skills/<domain>/SKILL.md`
 
-Write your project's invariant business rules as a skill. Keep it to **domain
-rules only** — stack methodology belongs in the `*-conventions` skills, paths in
-`project.md`.
+프로젝트의 불변 비즈니스 규칙을 스킬로 작성한다. **도메인 규칙만** 담는다 — 스택
+방법론은 `*-conventions` 스킬에, 경로는 `project.md`에 둔다.
 
-### 2c. `CLAUDE.md` PROJECT section + HARNESS core
+### 2c. `CLAUDE.md` PROJECT 섹션 + HARNESS 코어
 
-The HARNESS methodology (pipeline ①–⑥, fast-path gates, Operating Rules §0–§5)
-ships as `CLAUDE-core.md`. Place it at `.claude/CLAUDE-core.md` (plugin method:
-copy it out of the plugin, or `@import` from the plugin root) and pull it into
-the project's `CLAUDE.md` with a bare import line:
+HARNESS 방법론(파이프라인 ①–⑥, fast-path 게이트, Operating Rules §0–§5)은
+`CLAUDE-core.md`로 싣는다. 이를 `.claude/CLAUDE-core.md`에 두고(플러그인 방식: 플러그인에서
+복사하거나 플러그인 루트에서 `@import`), 프로젝트 `CLAUDE.md`에 한 줄 import로 끌어온다:
 
 ```markdown
 ## 공통 방법론 (HARNESS)
@@ -175,85 +171,76 @@ the project's `CLAUDE.md` with a bare import line:
 @.claude/CLAUDE-core.md
 ```
 
-Add a PROJECT section to `CLAUDE.md` for project identity/overview/commands; keep
-PROJECT values as pointers to `.claude/project.md` and the domain skill.
-(Template: `templates/CLAUDE.md`.)
+`CLAUDE.md`에 PROJECT 섹션을 추가해 프로젝트 정체성/개요/명령을 적되, PROJECT 값은
+`.claude/project.md`와 도메인 스킬을 가리키는 포인터로 유지한다. (템플릿: `templates/CLAUDE.md`.)
 
-### 2d. Bind the agent shells to this instance
+### 2d. 에이전트 셸을 이 인스턴스에 바인딩
 
-The packaged shells are a **generic, pre-rebind template** — both frontmatter
-`skills:` and body are project-agnostic (zero source-project domain strings;
-the frontmatter `description` keeps a human-readable HCG-stack hint). Install is
-**generic → instance**: fill the placeholders with your values.
+패키지 셸은 **generic·사전-rebind 템플릿**이다 — frontmatter `skills:`와 본문 모두
+프로젝트 무관(소스 프로젝트 도메인 문자열 0; frontmatter `description`은 사람이 읽을
+HCG-스택 힌트만 유지). 설치는 **generic → instance**: placeholder를 당신 값으로 채운다.
 
-1. **`skills:` frontmatter** — packaged shells bind only portable skills
-   (`<role>-conventions`; plan = `pipeline-phase`, qa = `codex-review`). **Add**
-   your per-project skills: your `<domain>` skill to **all 5** shells, your E2E
-   skill to the **front** shell — and name them in `project.md`
-   「도메인 스킬」/「테스트 스킬」. The body refers to skills by the project.md
-   field, so once the field names your skill, every "프로젝트의 도메인 스킬"
-   pointer resolves. (Optionally also add `verification-ladder` to each
-   implementer shell — every implementer should preload it.)
-2. **Identity / stack / domain** — author `project.md` (§2a) and the `<domain>`
-   skill (§2b). The shell bodies have no inline domain echo; they defer to those.
-   If your stack diverges from HCG standard, adjust the `*-conventions` skills.
+1. **`skills:` frontmatter** — 패키지 셸은 포터블 스킬만 바인딩한다
+   (`<role>-conventions`; plan = `pipeline-phase`, qa = `codex-review`). 여기에
+   프로젝트별 스킬을 **추가**: `<domain>` 스킬을 **5개 전부**에, E2E 스킬을 **front** 셸에 —
+   그리고 `project.md`의 「도메인 스킬」/「테스트 스킬」에 이름을 적는다. 본문은 project.md
+   필드로 스킬을 참조하므로, 필드가 당신 스킬명을 가리키면 "프로젝트의 도메인 스킬"
+   포인터가 전부 해소된다. (선택: 각 구현자 셸에 `verification-ladder`도 추가 — 모든
+   구현자가 preload하는 게 좋다.)
+2. **정체성 / 스택 / 도메인** — `project.md`(§2a)와 `<domain>` 스킬(§2b)을 작성한다.
+   셸 본문엔 도메인 echo가 없고 그것들에 위임한다. 스택이 HCG 표준과 다르면
+   `*-conventions` 스킬을 조정한다.
 
-> Plugin-method note: editing copies inside an installed plugin re-introduces
-> drift. The clean long-term answer is canonical adoption (the project consumes
-> the plugin as its single source, shells sterilized once); until then the
-> add-the-slots flow above is the additive path. See `portable-instance-boundary.md`.
+> 플러그인 방식 주의: 설치된 플러그인 안의 복사본을 편집하면 drift가 재발한다. 깔끔한
+> 장기 해법은 canonical 채택(프로젝트가 플러그인을 단일 출처로 소비, 셸은 한 번만
+> 무균화)이고, 그 전까진 위의 슬롯-추가 흐름이 가산적 경로다. `portable-instance-boundary.md` 참조.
 
-### 2e. Codex gate wrapper (`scripts/codex-review.mjs`)
+### 2e. Codex 게이트 래퍼 (`scripts/codex-review.mjs`)
 
-The qa-agent's Phase-completion gate (`codex-review` skill) runs
-`pnpm codex:review <base_sha>` — a wrapper this plugin does **not** bundle (it
-depends on the separate **codex-companion** plugin and your project's git/CLI).
-Wire it once per project:
+qa-agent의 Phase 완료 게이트(`codex-review` 스킬)는 `pnpm codex:review <base_sha>`를
+실행한다 — 이 래퍼는 플러그인이 **동봉하지 않는다**(별도 **codex-companion** 플러그인과
+프로젝트의 git/CLI에 의존). 프로젝트마다 한 번 배선한다:
 
-1. Copy the reference: `cp templates/codex-review.mjs <project>/scripts/codex-review.mjs`.
-2. Add the script to the project `package.json`:
+1. 레퍼런스 복사: `cp templates/codex-review.mjs <project>/scripts/codex-review.mjs`.
+2. 프로젝트 `package.json`에 스크립트 추가:
    ```json
    { "scripts": { "codex:review": "node scripts/codex-review.mjs" } }
    ```
-3. Edit the `// CUSTOMIZE` block in `scripts/codex-review.mjs` to call your
-   installed codex-companion review command (it is handed the cumulative diff +
-   the built-in `D9_FOCUS`). It must print the review to stdout and exit non-zero
-   on infra failure so the gate fails closed (cannot review → Phase cannot close).
-4. First-run auth: `node "<codex plugin>/codex-companion.mjs" setup --json` (or
-   `/codex:setup`).
+3. `scripts/codex-review.mjs`의 `// CUSTOMIZE` 블록을 편집해 설치한 codex-companion 리뷰
+   명령을 호출하게 한다(누적 diff + 내장 `D9_FOCUS`가 전달됨). 리뷰를 stdout에 출력하고
+   인프라 실패 시 비-0 종료해야 게이트가 fail-closed 된다(리뷰 불가 → Phase 종료 불가).
+4. 첫 실행 인증: `node "<codex plugin>/codex-companion.mjs" setup --json` (또는 `/codex:setup`).
 
-Until wired, the codex gate is unavailable — qa surfaces "cannot review" rather
-than a false PASS.
+배선 전까지 codex 게이트는 사용 불가 — qa는 거짓 PASS 대신 "리뷰 불가"를 표면화한다.
 
 ---
 
-## 3. Verify the install (rung-4, manual)
+## 3. 설치 검증 (rung-4, 수동)
 
-> The **`/hcg-harness:init` auto-bootstrap path** has its own rung-4 acceptance — environment-dependent,
-> run manually on first real install: confirm commands discovery + `${CLAUDE_PLUGIN_ROOT}` token
-> substitution, run `/hcg-harness:init` end-to-end, then `pnpm install` / build / dev on the generated
-> project, and `/hcg-harness:upgrade`. The table below covers the portable-bundle / manual-install verification.
+> **`/hcg-harness:init` 자동 부트스트랩 경로**는 자체 rung-4 수용을 가진다 — 환경 의존이라
+> 첫 실설치 때 수동 실행: 커맨드 발견 + `${CLAUDE_PLUGIN_ROOT}` 토큰 치환 확인, `/hcg-harness:init`
+> end-to-end 실행, 그다음 생성물에서 `pnpm install` / build / dev, 그리고 `/hcg-harness:upgrade`.
+> 아래 표는 포터블 번들 / 수동 설치 검증을 다룬다.
 
-| Check | How |
+| 검사 | 방법 |
 |---|---|
-| Manifests valid | `claude plugin validate <pkg> --strict` → exit 0 (method A) |
-| Components loaded | `claude plugin details hcg-harness` shows 5 agents + 7 skills + 4 hooks + 2 commands |
-| Hook unit tests | `npm test` (or `node --test hcg-harness/hooks/*.test.mjs`) → all pass |
-| Agent resolves slot | Spawn an agent; confirm it Reads `.claude/project.md` and the `<domain>` skill |
-| Lint hook fires | Edit a `*.ts` under the app dir → PostToolUse runs ESLint; new session → SessionStart injects phase/issue context |
-| Contracts lock fires | Try to Edit `contracts/*` without `HARNESS_CONTRACTS_WRITE=1` → PreToolUse denies it (set the env only for deliberate authoring). NB: whether PreToolUse fires for *subagent* calls is undocumented — verify in your env |
-| Destructive guard fires | A Bash `rm -rf /` or `prisma migrate reset` is denied unless `HARNESS_DISABLE_DESTRUCTIVE_GUARD=1`. NB: this is a regex guard (evadable — `find -delete`, `psql -f`); it is defense-in-depth, not a wall |
-| Real enforcement boundary | Hooks are guardrails, not a security boundary. For OS-level enforcement run Claude Code with `/sandbox` (Seatbelt/bubblewrap) — without it, Bash bypasses hook denies. See `portable-instance-boundary.md` |
-| Phase-gate at Stop | With an in-progress, un-gated phase in `tasks/phase-meta.yml`, ending the session warns (or blocks if `HARNESS_PHASE_GATE_BLOCK=1`) |
-| Hook app dir | If your source root is not `apps/web`, set `POST_EDIT_VERIFY_APP_DIR` (e.g. `.`, `web`, or a comma-separated list); else the lint hook silently no-ops |
-| Type-check gate | Optional: `POST_EDIT_VERIFY_TSC=1` adds a project `tsc --noEmit` after a clean lint |
-| Session label | Optional: set `SESSION_CONTEXT_LABEL` to your project name (default `[harness session context]`) |
+| 매니페스트 유효 | `claude plugin validate <pkg> --strict` → exit 0 (방식 A) |
+| 컴포넌트 적재 | `claude plugin details hcg-harness`에 5 agents + 7 skills + 4 hooks + 2 commands 표시 |
+| Hook 단위 테스트 | `npm test` (또는 `node --test hcg-harness/hooks/*.test.mjs`) → 전부 통과 |
+| 에이전트 슬롯 해소 | 에이전트 spawn → `.claude/project.md`와 `<domain>` 스킬을 Read하는지 확인 |
+| Lint hook 발화 | app dir 아래 `*.ts` 편집 → PostToolUse가 ESLint 실행; 새 세션 → SessionStart가 phase/이슈 컨텍스트 주입 |
+| 계약 잠금 발화 | `HARNESS_CONTRACTS_WRITE=1` 없이 `contracts/*` 편집 시도 → PreToolUse가 거부(의도적 작성 시에만 env 설정). 주의: PreToolUse가 *서브에이전트* 호출에 발화하는지는 미문서화 — 환경에서 실측 |
+| 파괴 가드 발화 | Bash `rm -rf /` 또는 `prisma migrate reset`은 `HARNESS_DISABLE_DESTRUCTIVE_GUARD=1` 없이 거부됨. 주의: regex 가드(우회 가능 — `find -delete`, `psql -f`); 방어심층이지 벽이 아님 |
+| 실제 강제 경계 | hook은 guardrail이지 보안 경계가 아니다. OS 레벨 강제는 Claude Code를 `/sandbox`(Seatbelt/bubblewrap)로 실행 — 없으면 Bash가 hook 거부를 우회. `portable-instance-boundary.md` 참조 |
+| Stop의 phase-gate | `tasks/phase-meta.yml`에 진행중·미게이트 phase가 있으면 세션 종료 시 경고(또는 `HARNESS_PHASE_GATE_BLOCK=1`이면 차단) |
+| Hook app dir | 소스 루트가 `apps/web`가 아니면 `POST_EDIT_VERIFY_APP_DIR` 설정(예: `.`, `web`, 또는 쉼표구분 목록); 아니면 lint hook이 조용히 no-op |
+| 타입체크 게이트 | 선택: `POST_EDIT_VERIFY_TSC=1`이면 클린 lint 후 프로젝트 `tsc --noEmit`도 실행 |
+| 세션 라벨 | 선택: `SESSION_CONTEXT_LABEL`을 프로젝트명으로 설정(기본 `[harness session context]`) |
 
-A full empty-project end-to-end install + run is environment-dependent (separate
-repo + live Claude Code) and is a **rung-4 manual acceptance** step.
+빈 프로젝트에서의 완전한 end-to-end 설치+실행은 환경 의존(별도 레포 + 라이브 Claude Code)이며
+**rung-4 수동 수용** 단계다.
 
-The `${CLAUDE_PLUGIN_ROOT}`/`${CLAUDE_PROJECT_DIR}` token expansion the plugin
-hooks rely on is **verified official behavior** — Claude Code substitutes these
-tokens inline *before* shell execution (plugins-reference, "substituted inline …
-in … hook commands …"), cross-platform (Windows PowerShell/`cmd` included) with
-no shell-syntax dependency.
+플러그인 hook이 의존하는 `${CLAUDE_PLUGIN_ROOT}`/`${CLAUDE_PROJECT_DIR}` 토큰 확장은
+**검증된 공식 동작**이다 — Claude Code가 셸 실행 *전에* 이 토큰들을 인라인 치환하며
+(plugins-reference, "substituted inline … in … hook commands …"), 셸 문법 의존 없이
+크로스플랫폼(Windows PowerShell/`cmd` 포함)으로 동작한다.
