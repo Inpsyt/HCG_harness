@@ -4,12 +4,13 @@
 > the **instance slot** so the agent shells resolve to that project's paths,
 > stack, and domain rules.
 >
-> The harness ships the portable layer only: 5 agent shells, 7 portable skills
+> The harness ships the portable layer: 5 agent shells, 7 portable skills
 > (4 process + 3 HCG-stack conventions), 4 hooks (PreToolUse contracts+destructive
 > guard · PostToolUse lint · SessionStart context · Stop phase-gate), 5 workflow
-> templates, and the HARNESS methodology core (`CLAUDE-core.md`). Project paths,
-> domain rules, the codex-gate wrapper, and per-project skills live in the
-> **consuming** project.
+> templates, 2 commands (`hcg-init` · `hcg-upgrade`), the bootstrap engine
+> (`scripts/bootstrap.mjs`), the HCG profile (`profiles/hcg/`), and the HARNESS
+> methodology core (`CLAUDE-core.md`). Project paths, domain rules, the
+> codex-gate wrapper, and per-project skills live in the **consuming** project.
 
 ---
 
@@ -44,7 +45,7 @@ claude plugin marketplace add <path-to>/hcg_harness
 # 3. install the plugin
 claude plugin install hcg-harness@hcg-harness-marketplace
 
-# 4. confirm the loaded inventory (5 agents + 7 skills + 4 hooks + 5 workflows)
+# 4. confirm the loaded inventory (5 agents + 7 skills + 4 hooks + 5 workflows + 2 commands)
 claude plugin list
 claude plugin details hcg-harness
 ```
@@ -62,6 +63,14 @@ they are loadable as named workflows —
 They are generic skeletons; inject project specifics via `args` + `.claude/project.md`.
 (Workflows must be enabled in the consuming project — gated by `disableWorkflows`
 / env `CLAUDE_CODE_DISABLE_WORKFLOWS`.)
+
+### 자동 부트스트랩 (`/hcg-init`, 권장)
+
+플러그인 설치 후 새 세션을 열면 SessionStart 가 미부트스트랩을 감지해 `/hcg-init` 실행을
+안내한다. `/hcg-init` 는 프레임워크(HCG 기본)·프로젝트명을 묻고, 하네스 레이어 + 최소 앱
+골격을 생성한 뒤 setup 명령(`pnpm install` 등)을 안내한다(실행은 사용자 몫). 재동기화는
+`/hcg-upgrade`. 아래 §2 "수동 슬롯 채우기"는 부트스트랩을 쓰지 않거나 기존 프로젝트에
+얹을 때의 절차다.
 
 ### B. Copy the layout (no plugin tooling)
 
@@ -213,10 +222,15 @@ than a false PASS.
 
 ## 3. Verify the install (rung-4, manual)
 
+> The **`/hcg-init` auto-bootstrap path** has its own rung-4 acceptance — environment-dependent,
+> run manually on first real install: confirm commands discovery + `${CLAUDE_PLUGIN_ROOT}` token
+> substitution, run `/hcg-init` end-to-end, then `pnpm install` / build / dev on the generated
+> project, and `/hcg-upgrade`. The table below covers the portable-bundle / manual-install verification.
+
 | Check | How |
 |---|---|
 | Manifests valid | `claude plugin validate <pkg> --strict` → exit 0 (method A) |
-| Components loaded | `claude plugin details hcg-harness` shows 5 agents + 7 skills + 4 hooks |
+| Components loaded | `claude plugin details hcg-harness` shows 5 agents + 7 skills + 4 hooks + 2 commands |
 | Hook unit tests | `npm test` (or `node --test hcg-harness/hooks/*.test.mjs`) → all pass |
 | Agent resolves slot | Spawn an agent; confirm it Reads `.claude/project.md` and the `<domain>` skill |
 | Lint hook fires | Edit a `*.ts` under the app dir → PostToolUse runs ESLint; new session → SessionStart injects phase/issue context |
