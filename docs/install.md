@@ -7,7 +7,7 @@
 > The harness ships the portable layer: 5 agent shells, 7 portable skills
 > (4 process + 3 HCG-stack conventions), 4 hooks (PreToolUse contracts+destructive
 > guard · PostToolUse lint · SessionStart context · Stop phase-gate), 5 workflow
-> templates, 2 commands (`hcg-init` · `hcg-upgrade`), the bootstrap engine
+> templates, 2 commands (`init` · `upgrade` → `/hcg-harness:init` · `:upgrade`), the bootstrap engine
 > (`scripts/bootstrap.mjs`), the HCG profile (`profiles/hcg/`), and the HARNESS
 > methodology core (`CLAUDE-core.md`). Project paths, domain rules, the
 > codex-gate wrapper, and per-project skills live in the **consuming** project.
@@ -16,7 +16,7 @@
 
 ## 0. Prerequisites
 
-- **Claude Code CLI** — to install the plugin + invoke `/hcg-harness:hcg-init`.
+- **Claude Code CLI** — to install the plugin + invoke `/hcg-harness:init`.
 - **Node.js 20+** (LTS; verified on 22) on PATH — the hooks and bootstrap engine are `.mjs`.
 - **pnpm 9+** (verified on 10) — the HCG profile's package manager; the generated
   `setupCommands` use pnpm. (pnpm 10+ blocks postinstall build scripts by default —
@@ -71,12 +71,12 @@ They are generic skeletons; inject project specifics via `args` + `.claude/proje
 (Workflows must be enabled in the consuming project — gated by `disableWorkflows`
 / env `CLAUDE_CODE_DISABLE_WORKFLOWS`.)
 
-### 자동 부트스트랩 (`/hcg-harness:hcg-init`, 권장)
+### 자동 부트스트랩 (`/hcg-harness:init`, 권장)
 
-플러그인 설치 후 새 세션을 열면 SessionStart 가 미부트스트랩을 감지해 `/hcg-harness:hcg-init` 실행을
-안내한다. `/hcg-harness:hcg-init` 는 프레임워크(HCG 기본)·프로젝트명을 묻고, 하네스 레이어 + 최소 앱
+플러그인 설치 후 새 세션을 열면 SessionStart 가 미부트스트랩을 감지해 `/hcg-harness:init` 실행을
+안내한다. `/hcg-harness:init` 는 프레임워크(HCG 기본)·프로젝트명을 묻고, 하네스 레이어 + 최소 앱
 골격을 생성한 뒤 setup 명령(`pnpm install` 등)을 안내한다(실행은 사용자 몫). 재동기화는
-`/hcg-harness:hcg-upgrade`. 아래 §2 "수동 슬롯 채우기"는 부트스트랩을 쓰지 않거나 기존 프로젝트에
+`/hcg-harness:upgrade`. 아래 §2 "수동 슬롯 채우기"는 부트스트랩을 쓰지 않거나 기존 프로젝트에
 얹을 때의 절차다.
 
 ### B. Copy the layout (no plugin tooling)
@@ -229,10 +229,10 @@ than a false PASS.
 
 ## 3. Verify the install (rung-4, manual)
 
-> The **`/hcg-harness:hcg-init` auto-bootstrap path** has its own rung-4 acceptance — environment-dependent,
+> The **`/hcg-harness:init` auto-bootstrap path** has its own rung-4 acceptance — environment-dependent,
 > run manually on first real install: confirm commands discovery + `${CLAUDE_PLUGIN_ROOT}` token
-> substitution, run `/hcg-harness:hcg-init` end-to-end, then `pnpm install` / build / dev on the generated
-> project, and `/hcg-harness:hcg-upgrade`. The table below covers the portable-bundle / manual-install verification.
+> substitution, run `/hcg-harness:init` end-to-end, then `pnpm install` / build / dev on the generated
+> project, and `/hcg-harness:upgrade`. The table below covers the portable-bundle / manual-install verification.
 
 | Check | How |
 |---|---|

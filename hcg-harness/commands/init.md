@@ -2,7 +2,7 @@
 description: 빈 프로젝트에 HCG 하네스 + 앱 골격을 선택형으로 부트스트랩
 ---
 
-# /hcg-harness:hcg-init
+# /hcg-harness:init
 
 이 커맨드는 대화/오케스트레이션만 담당하고, 모든 파일 작업은
 `${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.mjs` 엔진이 수행한다.

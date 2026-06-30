@@ -292,7 +292,7 @@ export function main(argv, deps = {}) {
   if (args.mode === "init") {
     if (readMarker(args.target, fs) && args.initMode !== "force") {
       log(JSON.stringify({ ok: false, alreadyBootstrapped: true, mode: "init",
-        hint: "이미 부트스트랩된 프로젝트입니다(.claude/.hcg-harness.json 존재). 템플릿 갱신은 /hcg-harness:hcg-upgrade 를, 재생성을 강제하려면 --force 를 사용하세요." }));
+        hint: "이미 부트스트랩된 프로젝트입니다(.claude/.hcg-harness.json 존재). 템플릿 갱신은 /hcg-harness:upgrade 를, 재생성을 강제하려면 --force 를 사용하세요." }));
       return 1;
     }
     const choices = { projectName: args.projectName || profile.id, appDir: args.appDir || profile.appDir };
@@ -321,7 +321,7 @@ export function main(argv, deps = {}) {
 
   if (args.mode === "upgrade") {
     const prev = readMarker(args.target, fs);
-    if (!prev) { log(JSON.stringify({ ok: false, error: "마커가 없습니다. 먼저 /hcg-harness:hcg-init 를 실행하세요." })); return 1; }
+    if (!prev) { log(JSON.stringify({ ok: false, error: "마커가 없습니다. 먼저 /hcg-harness:init 를 실행하세요." })); return 1; }
     const choices = { projectName: prev.choices?.projectName || profile.id, appDir: prev.choices?.appDir || profile.appDir };
     let rendered;
     try { rendered = renderProfile({ templatesDir, profile, choices, fs }); }

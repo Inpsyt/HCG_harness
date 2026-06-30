@@ -17,7 +17,7 @@ hcg_harness/                         # 레포 = 단일 플러그인 마켓플레
 │  ├─ .claude-plugin/plugin.json
 │  ├─ CLAUDE-core.md                 # HARNESS 방법론 코어 (pipeline · fast-path · Operating Rules §0–§5)
 │  ├─ agents/                        # 5개 generic 역할 shell: plan · qa · db · backend · front
-│  ├─ commands/                      # hcg-init · hcg-upgrade
+│  ├─ commands/                      # init · upgrade  (호출: /hcg-harness:init · :upgrade)
 │  ├─ skills/
 │  │  ├─ pipeline-phase · codex-review · verification-ladder · contract-authoring  # 프로세스 (스택 중립)
 │  │  └─ db- · backend- · frontend-conventions                                     # HCG 표준 스택
@@ -42,7 +42,7 @@ hcg_harness/                         # 레포 = 단일 플러그인 마켓플레
 
 ---
 
-## 자동 부트스트랩 (`/hcg-harness:hcg-init` · `/hcg-harness:hcg-upgrade`)
+## 자동 부트스트랩 (`/hcg-harness:init` · `/hcg-harness:upgrade`)
 
 새 프로젝트를 시작하는 권장 방식이다.
 
@@ -52,8 +52,8 @@ hcg_harness/                         # 레포 = 단일 플러그인 마켓플레
 
 ```
 1. claude plugin install hcg-harness@hcg-harness-marketplace
-2. 세션 열기 → SessionStart 감지기가 "아직 부트스트랩 안 됨 → /hcg-harness:hcg-init 실행" 안내 주입
-3. /hcg-harness:hcg-init 실행 → 프레임워크 선택(HCG 기본) · 프로젝트명 · 앱 레이아웃 질문
+2. 세션 열기 → SessionStart 감지기가 "아직 부트스트랩 안 됨 → /hcg-harness:init 실행" 안내 주입
+3. /hcg-harness:init 실행 → 프레임워크 선택(HCG 기본) · 프로젝트명 · 앱 레이아웃 질문
 4. 하네스 레이어 + 최소 앱 골격 파일 자동 생성 + 마커 + hook env 기록
 5. setup 명령 안내 출력 (pnpm install / prisma generate / playwright install / dev) — 실행은 사용자 몫
 ```
@@ -62,10 +62,10 @@ hcg_harness/                         # 레포 = 단일 플러그인 마켓플레
 - 생성 범위: 하네스 레이어 + **최소** 앱 골격(데모 없음) + setup 명령 **안내**(자동 실행 안 함)
 - 프레임워크 선택: 선택 인프라는 처음부터, v1은 **HCG 프로파일 1개**만 동봉
 - 확장: 프레임워크 추가 = `profiles/<id>/` 디렉터리 1개 추가 (코어 코드 무수정)
-- 트리거: `/hcg-harness:hcg-init` 커맨드 + SessionStart 감지기 (플러그인 제약상 "설치 즉시 실행"은 불가)
+- 트리거: `/hcg-harness:init` 커맨드 + SessionStart 감지기 (플러그인 제약상 "설치 즉시 실행"은 불가)
 - agent 바인딩: 5개 shell을 `.claude/agents/`로 복사 후 frontmatter 바인딩 (자족성·자동로딩)
 - 생성 엔진: 얇은 커맨드 + `scripts/bootstrap.mjs`(단순 토큰 치환·결정적·테스트 대상)
-- 재적용: **`/hcg-harness:hcg-upgrade`** — 마커+매니페스트(해시) 기반으로 사용자 수정은 보존하며 하네스
+- 재적용: **`/hcg-harness:upgrade`** — 마커+매니페스트(해시) 기반으로 사용자 수정은 보존하며 하네스
   관리 파일만 안전 재생성 (복사 방식의 drift 해소책)
 
 ---
