@@ -120,8 +120,8 @@ test("markerExists true/false", () => {
   assert.equal(markerExists("/p", { existsSync: () => false }), false);
 });
 
-test("formatBootstrapHint mentions /hcg-init", () => {
+test("formatBootstrapHint mentions /hcg-harness:hcg-init", () => {
   const s = formatBootstrapHint("[x]");
-  assert.match(s, /\/hcg-init/);
+  assert.match(s, /\/hcg-harness:hcg-init/);
   assert.match(s, /부트스트랩/);
 });

@@ -16,10 +16,17 @@
 
 ## 0. Prerequisites
 
-- Claude Code CLI (plugin commands come from `claude plugin --help`).
-- Node.js on PATH (the verification hooks are `.mjs`).
+- **Claude Code CLI** — to install the plugin + invoke `/hcg-harness:hcg-init`.
+- **Node.js 20+** (LTS; verified on 22) on PATH — the hooks and bootstrap engine are `.mjs`.
+- **pnpm 9+** (verified on 10) — the HCG profile's package manager; the generated
+  `setupCommands` use pnpm. (pnpm 10+ blocks postinstall build scripts by default —
+  run `pnpm approve-builds` before `pnpm prisma generate`.)
+- **git** — for the codex gate (base_sha diff) and the worktree-isolated workflows
+  (`migrate` / `test-gen`).
 - The harness source — this repo (`hcg_harness/`), or a git repo hosting
   `.claude-plugin/marketplace.json`.
+- **MariaDB/MySQL** — only when running the app against a real DB (Prisma
+  migrate/connect); not needed for bootstrap or `pnpm build`.
 
 ---
 
@@ -64,12 +71,12 @@ They are generic skeletons; inject project specifics via `args` + `.claude/proje
 (Workflows must be enabled in the consuming project — gated by `disableWorkflows`
 / env `CLAUDE_CODE_DISABLE_WORKFLOWS`.)
 
-### 자동 부트스트랩 (`/hcg-init`, 권장)
+### 자동 부트스트랩 (`/hcg-harness:hcg-init`, 권장)
 
-플러그인 설치 후 새 세션을 열면 SessionStart 가 미부트스트랩을 감지해 `/hcg-init` 실행을
-안내한다. `/hcg-init` 는 프레임워크(HCG 기본)·프로젝트명을 묻고, 하네스 레이어 + 최소 앱
+플러그인 설치 후 새 세션을 열면 SessionStart 가 미부트스트랩을 감지해 `/hcg-harness:hcg-init` 실행을
+안내한다. `/hcg-harness:hcg-init` 는 프레임워크(HCG 기본)·프로젝트명을 묻고, 하네스 레이어 + 최소 앱
 골격을 생성한 뒤 setup 명령(`pnpm install` 등)을 안내한다(실행은 사용자 몫). 재동기화는
-`/hcg-upgrade`. 아래 §2 "수동 슬롯 채우기"는 부트스트랩을 쓰지 않거나 기존 프로젝트에
+`/hcg-harness:hcg-upgrade`. 아래 §2 "수동 슬롯 채우기"는 부트스트랩을 쓰지 않거나 기존 프로젝트에
 얹을 때의 절차다.
 
 ### B. Copy the layout (no plugin tooling)
@@ -222,10 +229,10 @@ than a false PASS.
 
 ## 3. Verify the install (rung-4, manual)
 
-> The **`/hcg-init` auto-bootstrap path** has its own rung-4 acceptance — environment-dependent,
+> The **`/hcg-harness:hcg-init` auto-bootstrap path** has its own rung-4 acceptance — environment-dependent,
 > run manually on first real install: confirm commands discovery + `${CLAUDE_PLUGIN_ROOT}` token
-> substitution, run `/hcg-init` end-to-end, then `pnpm install` / build / dev on the generated
-> project, and `/hcg-upgrade`. The table below covers the portable-bundle / manual-install verification.
+> substitution, run `/hcg-harness:hcg-init` end-to-end, then `pnpm install` / build / dev on the generated
+> project, and `/hcg-harness:hcg-upgrade`. The table below covers the portable-bundle / manual-install verification.
 
 | Check | How |
 |---|---|

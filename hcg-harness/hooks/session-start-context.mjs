@@ -198,7 +198,7 @@ export function formatBootstrapHint(label) {
   return [
     label,
     "- 상태: 이 프로젝트는 아직 HCG 하네스로 부트스트랩되지 않았습니다.",
-    "- 다음 단계: `/hcg-init` 를 실행해 프레임워크를 선택하고 하네스 + 앱 골격을 생성하세요.",
+    "- 다음 단계: `/hcg-harness:hcg-init` 를 실행해 프레임워크를 선택하고 하네스 + 앱 골격을 생성하세요.",
   ].join("\n");
 }
 
