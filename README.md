@@ -6,7 +6,7 @@ HCG 프로젝트를 위한 포터블 멀티에이전트 **개발 하네스**. Cl
 
 기존 in-repo 하네스에서 추출해 **HCG 표준 스택**(Next.js App Router · MariaDB + Prisma ·
 TanStack Query / Zustand / React Hook Form / Zod · Vitest + Playwright · feature-centric 구조)에
-맞춰 재정렬했다. 전체 HCG 표준은 `HCG-Framework.md`(상위 폴더) 참조.
+맞춰 재정렬했다.
 
 ## 구성
 
