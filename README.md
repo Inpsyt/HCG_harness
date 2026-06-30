@@ -48,15 +48,33 @@ hcg_harness/                         # 레포 = 단일 플러그인 마켓플레
 
 **요구사항(최소)**: Node.js 20+ (LTS · 검증 22) · pnpm 9+ (HCG 프로파일의 패키지 매니저 · 검증 10) · git · Claude Code CLI. DB(MariaDB/MySQL)는 앱을 실제 DB에 연결·마이그레이션할 때만 필요(부트스트랩·빌드엔 불요). pnpm 10+는 postinstall을 기본 차단하므로 `pnpm prisma generate` 전에 `pnpm approve-builds`가 필요할 수 있음.
 
-**흐름** (거의 빈 폴더 기준):
+**설치 → 부트스트랩 → 환경세팅 순서** (빈 폴더 기준):
 
+**① 터미널 — 마켓플레이스 추가 + 플러그인 설치 (최초 1회)**
+```bash
+claude plugin marketplace add Inpsyt/HCG_harness          # git 소스(배포·타 PC). 로컬 개발이면: claude plugin marketplace add <hcg_harness 폴더 경로>
+claude plugin install hcg-harness@hcg-harness-marketplace
+claude plugin list                                        # 확인: hcg-harness ✔ enabled
 ```
-1. claude plugin install hcg-harness@hcg-harness-marketplace
-2. 세션 열기 → SessionStart 감지기가 "아직 부트스트랩 안 됨 → /hcg-harness:init 실행" 안내 주입
-3. /hcg-harness:init 실행 → 프레임워크 선택(HCG 기본) · 프로젝트명 · 앱 레이아웃 질문
-4. 하네스 레이어 + 최소 앱 골격 파일 자동 생성 + 마커 + hook env 기록
-5. setup 명령 안내 출력 (pnpm install / prisma generate / playwright install / dev) — 실행은 사용자 몫
+
+**② 빈 프로젝트 폴더에서 새 세션 열기** → SessionStart가 *"아직 부트스트랩 안 됨 → `/hcg-harness:init` 실행"* 안내를 주입.
+
+**③ 세션에서 부트스트랩 실행**
 ```
+/hcg-harness:init
+```
+→ 프레임워크(HCG 기본)·프로젝트명·앱 레이아웃을 묻고 → 하네스 레이어 + 최소 앱 골격 생성 + 마커 기록 → setup 명령 안내(실행은 사용자 몫).
+
+**④ 터미널 — 안내된 setup 명령 실행 (생성된 앱 디렉터리에서)**
+```bash
+cd apps/web
+pnpm install
+pnpm prisma generate          # pnpm 10은 먼저: pnpm approve-builds
+pnpm dlx playwright install
+pnpm dev                      # http://localhost:3000
+```
+
+**재적용**(템플릿 갱신)은 세션에서 `/hcg-harness:upgrade`. (마켓플레이스가 git 소스면 먼저 `claude plugin marketplace update hcg-harness-marketplace`로 최신 커밋 반영.)
 
 **핵심 결정**
 - 생성 범위: 하네스 레이어 + **최소** 앱 골격(데모 없음) + setup 명령 **안내**(자동 실행 안 함)
