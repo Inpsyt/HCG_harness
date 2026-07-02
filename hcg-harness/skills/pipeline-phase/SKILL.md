@@ -36,7 +36,7 @@ description: 신규 Phase를 선언/종료할 때 따르는 의무 절차 — ph
 
 3. **`tasks/TODO.md` 인덱스 업데이트**: "## 진행중" 표에 한 줄 추가. TODO.md는 인덱스(50줄 이내 유지)이며 상세는 phase 파일이 보유한다.
 
-4. **에이전트별 Task 분배**: phase 파일 내부에서 구현 에이전트별 섹션(예: `#### DB Agent`, `#### Backend Agent`, `#### Front Agent`, `#### QA Agent`)으로 Task를 분배한다. 에이전트별 보조 미러(`tasks/<agent>-tasks.md`, 읽기 편의용)도 동기화한다. **분배(dispatch)는 plan 의 Analyze 교차-일관성 게이트(커버리지·계약 정합·경계)를 통과해야 한다** — 불일치 시 dispatch 금지(plan-agent §Analyze 게이트).
+4. **에이전트별 Task 분배**: phase 파일 내부에서 구현 에이전트별 섹션(예: `#### DB Agent`, `#### Backend Agent`, `#### Front Agent`, `#### QA Agent`)으로 Task를 분배한다. 에이전트별 보조 미러(`tasks/<agent>-tasks.md`, 읽기 편의용)도 동기화한다. **분배(dispatch)는 plan 의 Analyze 교차-일관성 게이트(커버리지·계약 정합·경계)를 통과해야 한다** — 불일치 시 dispatch 금지(plan-agent §Analyze 게이트). 게이트 통과 후에도 **사용자의 설계 승인 전에는 dispatch 금지**(CLAUDE-core §설계 승인 체크포인트 ①.5).
 
 ## 관리 대상 파일
 

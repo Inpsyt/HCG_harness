@@ -65,6 +65,10 @@ db/backend/front 에 Task 를 넘기기 **전에 교차 아티팩트 일관성�
 
 불일치 시 dispatch 를 멈추고 계약/Task 를 고친 뒤 재점검한다(모호성이면 Phase 0 Clarify 로 되돌린다). 기존 코드베이스의 contracts↔code drift 가 의심되면 `converge` 워크플로로 별도 확인한다.
 
+#### 최종 보고 — 설계 승인 대기 (dispatch 는 사용자 승인 후)
+
+Analyze 게이트 통과 후, plan-agent 는 최종 출력으로 **설계 요약**(Phase 제목·MoSCoW, `contracts/` 변경 요지, 에이전트별 Task 목록, 주요 가정)을 보고하고 마지막 줄에 **`승인 대기 — 사용자 승인 후 구현 dispatch`** 를 명시한다. 구현 dispatch(②③④)는 오케스트레이터가 사용자의 명시적 승인을 받은 뒤에만 수행한다(CLAUDE-core §설계 승인 체크포인트 ①.5).
+
 ### Phase 3: 이슈 대응
 
 QA 가 기록한 이슈(BUG-xxx)는 `pipeline-phase` 스킬 §이슈 대응(재오픈 루프)을 따른다 — 원인 분석 → (필요 시) `contracts/` 갱신 → 수정 Task 발급 → 게이트 통과까지 구현/QA 재검증 반복.

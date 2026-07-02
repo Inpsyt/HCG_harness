@@ -7,6 +7,7 @@
 
 ```
 ① plan-agent   → contracts/ 계약서 업데이트 + tasks/ 에이전트별 Task 할당
+①.5 설계 승인   → 설계 요약을 사용자에게 제시, 명시적 승인 후에만 ②③④ dispatch
 ② db-agent     → tasks/db-tasks.md 수행 (DB 변경이 있을 때)
 ③ backend-agent → tasks/backend-tasks.md 수행 (API/서비스 변경이 있을 때)
 ④ front-agent  → tasks/front-tasks.md 수행 (UI 변경이 있을 때)
@@ -16,6 +17,15 @@
 
 - ②③④는 해당되는 에이전트만 병렬 호출 (DB 변경 없으면 db-agent 스킵 등)
 - qa-agent 통과할 때까지 ⑤⑥ 반복
+
+### 설계 승인 체크포인트 (①.5 — 필수)
+
+plan-agent 완료 후 오케스트레이터는 **구현 dispatch(②③④) 전에 반드시 멈추고** 설계 요약을 사용자에게 제시해 승인을 받는다:
+
+- **요약에 포함**: Phase 제목·MoSCoW, `contracts/` 변경 요지(신규/수정 계약), 에이전트별 Task 목록, 주요 가정.
+- 사용자가 수정을 요청하면 plan-agent 를 재호출해 계약/Task 를 갱신하고 **다시 제시**한다 — 승인 전 dispatch 금지.
+- **명시적 승인 후에만** ②③④ 를 호출한다(승인 없이 dispatch 금지). ⑥의 수정 Task 재발급 루프는 이미 승인된 설계 범위 내이므로 재승인 불요 — 단, 수정이 `contracts/` 를 바꾸면 다시 이 체크포인트를 거친다.
+- fast-path 는 이 체크포인트의 대상이 아니다 — plan-agent 를 거치지 않으므로 자체 사전 고지·veto 규칙을 따른다.
 
 ### 소규모 수정 fast-path (plan-agent 생략 조건)
 
