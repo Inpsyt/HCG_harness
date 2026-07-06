@@ -25,4 +25,11 @@ description: 빈 프로젝트에 HCG 하네스 + 앱 골격을 선택형으로 �
    - JSON `ok:false, blocked:true` → 비어있지 않은 폴더. 사용자에게 `--gap-fill` 또는 `--force` 재실행을 제안(동의 시 해당 플래그로 다시 4단계).
    - JSON `ok:false, error` → 오류 그대로 보고.
    - JSON `ok:true` → 생성 파일 요약 + `setupCommands`를 코드블록으로 안내. 사용자가 원하면 실행.
-6. **다음 단계 안내**: `.claude/project.md`·도메인 스킬·`contracts/*`를 채우라고 안내.
+6. **AX 표준 설치 (부가 단계 — 4단계 성공 시에만. 실패해도 init 은 성공)**:
+   `node "${CLAUDE_PLUGIN_ROOT}/scripts/install-ax.mjs"` 를 실행하고 JSON 결과를 해석한다.
+   - `ok:true, status:"already-installed"` → "AX 스킬 4종 이미 설치됨" 한 줄 보고.
+   - `ok:true, status:"installed"` → `copied` 나열 + "새 세션부터 `/ax-docx` `/ax-pptx`
+     `/ax-output` `/ax-wireframe` 사용 가능" 안내.
+   - `ok:false` → `error` 요약 + `fallback` 문구를 그대로 전달(front-agent 는 내장
+     `ui-standard` 스킬로 동일하게 동작). **init 실패로 처리하지 않는다.**
+7. **다음 단계 안내**: `.claude/project.md`·도메인 스킬·`contracts/*`를 채우라고 안내.

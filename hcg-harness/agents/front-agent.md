@@ -7,6 +7,7 @@ color: orange
 skills:
   - frontend-conventions
   - verification-ladder
+  - ui-standard
 ---
 
 # Front Agent - 프론트엔드 담당
@@ -30,6 +31,7 @@ skills:
 - `contracts/api-spec.md` — **반드시 이 API 명세의 Response 포맷을 따를 것** (Plan Agent가 확정한 계약서)
 - `contracts/shared-types.ts` — **반드시 이 타입 정의를 따를 것**
 - `contracts/design-guide.md` — **반드시 이 디자인 가이드의 명세에 따라 작성할것** (시스템 디자인 가이드)
+- `ui-standard` 스킬 — **회사 UI 표준 정본(HCG AX)**. 코드 구현 시 기본 소비는 스킬의 `html/` 경로(tokens·components·sections). 프로젝트별 확장·오버라이드는 `contracts/design-guide.md` 가 우선한다.
 
 ## 작업 범위
 - frontend 작업 경로(페이지·레이아웃·`components/*`·`hooks/*`·API 클라이언트)는 **`.claude/project.md` 의 「경로 > frontend」 를 단일 출처로 따른다.**

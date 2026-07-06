@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AX 웹·앱 UI — Mono Design System Demo</title>
+<!-- 폰트: 저장소 번들(OFL) 우선. CDN은 대안. -->
+<link rel="stylesheet" href="../../../fonts/web/fonts.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1">
+<style>
+/* ---- AX Tokens (Mono) — Figma `AX Tokens / Light` ---- */
+:root{
+  --ink-900:#111111;--ink-800:#1F1F1F;--ink-700:#333333;--ink-600:#4D4D4D;--ink-500:#767676;
+  --ink-400:#999999;--ink-300:#C2C2C2;--ink-200:#E0E0E0;--ink-100:#EFEFEF;--ink-50:#F7F7F7;--white:#FFFFFF;
+  --text-primary:#111111;--text-secondary:#4D4D4D;--text-tertiary:#767676;--text-disabled:#999999;--on-inverse:#FFFFFF;
+  --surface:#FFFFFF;--surface-subtle:#F7F7F7;--surface-muted:#EFEFEF;--inverse:#111111;
+  --border:#E0E0E0;--border-strong:#111111;--divider:#EDEDED;
+  --radius-sm:4px;--radius:8px;--radius-lg:12px;--radius-pill:999px;
+  --shadow-overlay:0 12px 32px rgba(17,17,17,.14);--focus-ring:0 0 0 2px var(--surface),0 0 0 4px var(--ink-900);
+  --font-sans:'Pretendard','IBM Plex Sans KR','Apple SD Gothic Neo','Noto Sans KR',system-ui,sans-serif;
+  --container:1120px;
+}
+/* ---- Dark mode — role tokens flip, scale stays absolute ---- */
+[data-theme="dark"]{
+  --text-primary:#F7F7F7;--text-secondary:#C2C2C2;--text-tertiary:#999999;--text-disabled:#4D4D4D;--on-inverse:#111111;
+  --surface:#111111;--surface-subtle:#1F1F1F;--surface-muted:#333333;--inverse:#F7F7F7;
+  --border:#333333;--border-strong:#F7F7F7;--divider:#1F1F1F;
+  --focus-ring:0 0 0 2px var(--surface),0 0 0 4px var(--ink-50);
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font-sans);background:var(--surface);color:var(--text-secondary);line-height:1.6;
+  transition:background .2s,color .2s;-webkit-font-smoothing:antialiased}
+.container{max-width:var(--container);margin:0 auto;padding:0 24px}
+h1,h2,h3{color:var(--text-primary);margin:0}
+.t-label{font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--text-tertiary)}
+a{color:inherit;text-decoration:none}
+/* header */
+.gnb{position:sticky;top:0;z-index:10;border-bottom:1px solid var(--border);background:var(--surface)}
+.gnb__in{display:flex;align-items:center;justify-content:space-between;height:64px}
+.gnb__left{display:flex;align-items:center;gap:36px}
+.logo{font-weight:700;font-size:20px;color:var(--text-primary)}
+.gnb nav{display:flex;gap:24px}
+.gnb nav a{color:var(--text-secondary);font-size:15px}
+.gnb nav a[aria-current]{color:var(--text-primary);font-weight:600}
+.gnb__right{display:flex;align-items:center;gap:14px}
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 18px;border-radius:var(--radius);
+  font:600 15px var(--font-sans);border:1.5px solid transparent;cursor:pointer;transition:background .15s}
+.btn--lg{height:52px;padding:0 24px;font-size:16px}
+.btn--primary{background:var(--inverse);color:var(--on-inverse)}
+.btn--secondary{background:var(--surface);color:var(--text-primary);border-color:var(--border-strong)}
+.btn--ghost{background:transparent;color:var(--text-primary)}
+.btn:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+/* hero */
+.hero{background:var(--surface-subtle);padding:72px 0}
+.hero__grid{display:grid;grid-template-columns:1fr 440px;gap:56px;align-items:center}
+.hero h1{font-size:44px;line-height:1.2;letter-spacing:-.01em}
+.hero p{font-size:18px;color:var(--text-secondary);margin:16px 0 24px}
+.hero__cta{display:flex;gap:12px}
+.hero__vis{aspect-ratio:11/8;background:var(--surface-muted);border-radius:var(--radius-lg);overflow:hidden}
+.hero__vis img,.card__th img{width:100%;height:100%;object-fit:cover;display:block;filter:grayscale(1)}
+.section{padding:64px 0}
+.section>h2{font-size:28px;margin-bottom:8px}
+.section .lead{color:var(--text-tertiary);margin-bottom:28px}
+/* showcase */
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:20px}
+.badge{display:inline-flex;align-items:center;height:26px;padding:0 12px;border-radius:var(--radius-pill);font-size:13px;font-weight:600}
+.badge--solid{background:var(--inverse);color:var(--on-inverse)}
+.badge--outline{border:1.2px solid var(--border-strong);color:var(--text-primary)}
+.tag{background:var(--surface-muted);color:var(--text-secondary);border-radius:var(--radius-sm);padding:4px 10px;font-size:13px;font-weight:600}
+.input{height:48px;width:280px;max-width:100%;border:1.2px solid var(--ink-300);border-radius:var(--radius);
+  padding:0 16px;font:15px var(--font-sans);background:var(--surface);color:var(--text-primary)}
+.input::placeholder{color:var(--text-disabled)}
+.input:focus{outline:none;border:2px solid var(--border-strong)}
+.switch{position:relative;width:46px;height:26px;display:inline-block}
+.switch input{display:none}
+.switch span{position:absolute;inset:0;background:var(--surface-muted);border-radius:999px;transition:.2s}
+.switch span::before{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--surface);transition:.2s}
+.switch input:checked+span{background:var(--inverse)}
+.switch input:checked+span::before{transform:translateX(20px);background:var(--on-inverse)}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.card{border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;background:var(--surface)}
+.card__th{aspect-ratio:16/10;background:var(--surface-muted);display:grid;place-items:center;color:var(--text-tertiary);font-size:13px}
+.card__b{padding:18px;display:flex;flex-direction:column;gap:6px}
+.card__b h3{font-size:17px}
+.card__b .price{font-weight:600;color:var(--text-primary)}
+table{width:100%;border-collapse:collapse;border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
+th{background:var(--surface-subtle);text-align:left;font-size:14px;color:var(--text-primary);padding:14px 18px;border-bottom:1px solid var(--border)}
+td{padding:14px 18px;border-bottom:1px solid var(--divider);font-size:14px;color:var(--text-secondary)}
+tr:last-child td{border-bottom:0}
+/* footer */
+.footer{background:var(--inverse);color:var(--on-inverse);padding:48px 0}
+.footer a{color:var(--text-tertiary);display:block;font-size:14px;margin-top:8px}
+.footer__top{display:flex;justify-content:space-between;gap:48px;flex-wrap:wrap}
+.footer__cols{display:flex;gap:56px}
+.footer__cols h4{font-size:14px;color:var(--on-inverse);margin:0 0 6px}
+/* theme toggle */
+.themebtn{position:fixed;right:20px;bottom:20px;z-index:50;height:48px;padding:0 18px;border-radius:var(--radius-pill);
+  background:var(--inverse);color:var(--on-inverse);border:0;font:600 14px var(--font-sans);cursor:pointer;box-shadow:var(--shadow-overlay)}
+@media(max-width:860px){.hero__grid,.cards{grid-template-columns:1fr}.gnb nav{display:none}}
+</style>
+</head>
+<body>
+<header class="gnb"><div class="container gnb__in">
+  <div class="gnb__left"><a class="logo" href="#">HCG</a>
+    <nav><a aria-current="page">홈</a><a>도서</a><a>전자책</a><a>이벤트</a></nav></div>
+  <div class="gnb__right">
+    <i class="ph ph-magnifying-glass" style="font-size:21px;color:var(--text-secondary);cursor:pointer"></i>
+    <a style="color:var(--text-secondary);font-size:15px">로그인</a>
+    <button class="btn btn--primary" style="height:40px">회원가입</button></div>
+</div></header>
+
+<section class="hero"><div class="container hero__grid">
+  <div>
+    <span class="t-label">MONO DESIGN SYSTEM</span>
+    <h1>산출물 표준으로<br>더 빠르게, 더 일관되게</h1>
+    <p>누가 만들어도 같은 결과로 소통하는 무채색 디자인 시스템. 라이트·다크를 토큰 하나로 전환합니다.</p>
+    <div class="hero__cta"><button class="btn btn--primary btn--lg">시작하기 <i class="ph ph-arrow-right"></i></button>
+      <button class="btn btn--secondary btn--lg">자세히 보기</button></div>
+  </div>
+  <div class="hero__vis"><img src="https://images.unsplash.com/photo-1497366216548-37526070297c?w=900&h=650&fit=crop&sat=-100&q=75" alt="오피스 공간"></div>
+</div></section>
+
+<section class="section" style="padding-top:0"><div class="container">
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:24px">
+    <div style="display:flex;flex-direction:column;gap:8px"><i class="ph ph-target" style="font-size:30px;color:var(--text-primary)"></i><h3 style="font-size:17px">일관성</h3><p style="font-size:14px;margin:0">누가 만들어도 같은 결과.</p></div>
+    <div style="display:flex;flex-direction:column;gap:8px"><i class="ph ph-lightning" style="font-size:30px;color:var(--text-primary)"></i><h3 style="font-size:17px">속도</h3><p style="font-size:14px;margin:0">템플릿으로 즉시 생성.</p></div>
+    <div style="display:flex;flex-direction:column;gap:8px"><i class="ph ph-chart-bar" style="font-size:30px;color:var(--text-primary)"></i><h3 style="font-size:17px">데이터</h3><p style="font-size:14px;margin:0">같은 형식의 지표.</p></div>
+    <div style="display:flex;flex-direction:column;gap:8px"><i class="ph ph-shield-check" style="font-size:30px;color:var(--text-primary)"></i><h3 style="font-size:17px">신뢰</h3><p style="font-size:14px;margin:0">품질 하한선 보장.</p></div>
+  </div>
+</div></section>
+
+<section class="section"><div class="container">
+  <h2>Components</h2><p class="lead">버튼 · 뱃지 · 입력 · 토글 — 모두 무채색 토큰.</p>
+  <div class="row">
+    <button class="btn btn--primary">Primary</button>
+    <button class="btn btn--secondary">Secondary</button>
+    <button class="btn btn--ghost">Ghost</button>
+    <span class="badge badge--solid">NEW</span>
+    <span class="badge badge--outline">라벨</span>
+    <span class="tag">태그</span>
+  </div>
+  <div class="row">
+    <input class="input" placeholder="이메일 입력">
+    <label class="switch"><input type="checkbox" checked><span></span></label>
+    <span style="font-size:14px">이메일 알림 받기</span>
+  </div>
+  <div class="cards" style="margin-top:8px">
+    <article class="card"><div class="card__th"><img src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&h=400&fit=crop&sat=-100&q=70" alt=""></div><div class="card__b"><span class="t-label">카테고리</span><h3>카드 제목</h3><p style="font-size:14px;margin:0">간결한 설명 두 줄.</p><span class="price">18,000원</span></div></article>
+    <article class="card"><div class="card__th"><img src="https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=600&h=400&fit=crop&sat=-100&q=70" alt=""></div><div class="card__b"><span class="t-label">카테고리</span><h3>카드 제목</h3><p style="font-size:14px;margin:0">간결한 설명 두 줄.</p><span class="price">22,000원</span></div></article>
+    <article class="card"><div class="card__th"><img src="https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=600&h=400&fit=crop&sat=-100&q=70" alt=""></div><div class="card__b"><span class="t-label">카테고리</span><h3>카드 제목</h3><p style="font-size:14px;margin:0">간결한 설명 두 줄.</p><span class="price">15,000원</span></div></article>
+  </div>
+  <table style="margin-top:32px">
+    <thead><tr><th>항목</th><th>구분</th><th>상태</th><th>일자</th></tr></thead>
+    <tbody>
+      <tr><td>산출물 표준 문서</td><td>문서</td><td><span class="badge badge--solid">활성</span></td><td>2026.06.30</td></tr>
+      <tr><td>랜딩 와이어프레임</td><td>디자인</td><td><span class="badge badge--outline">대기</span></td><td>2026.06.28</td></tr>
+      <tr><td>컴포넌트 라이브러리</td><td>디자인</td><td><span class="tag">작성</span></td><td>2026.06.30</td></tr>
+    </tbody>
+  </table>
+</div></section>
+
+<footer class="footer"><div class="container footer__top">
+  <div><div class="logo" style="color:var(--on-inverse)">HCG</div><p style="color:var(--text-tertiary);font-size:14px">AI 산출물 표준 디자인 시스템</p></div>
+  <div class="footer__cols">
+    <div><h4>서비스</h4><a>도서</a><a>전자책</a><a>이벤트</a></div>
+    <div><h4>고객지원</h4><a>공지사항</a><a>FAQ</a><a>문의</a></div>
+  </div>
+</div></footer>
+
+<button class="themebtn" id="themebtn" aria-label="테마 전환"><i class="ph ph-moon"></i> 다크 모드</button>
+<script>
+  const b=document.getElementById('themebtn'), html=document.documentElement;
+  b.addEventListener('click',()=>{
+    const dark=html.getAttribute('data-theme')==='dark';
+    html.setAttribute('data-theme', dark?'light':'dark');
+    b.innerHTML = dark ? '<i class="ph ph-moon"></i> 다크 모드' : '<i class="ph ph-sun"></i> 라이트 모드';
+  });
+</script>
+</body>
+</html>
