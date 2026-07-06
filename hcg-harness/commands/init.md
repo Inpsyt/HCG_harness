@@ -19,12 +19,19 @@ description: 빈 프로젝트에 HCG 하네스 + 앱 골격을 선택형으로 �
    - 프레임워크/프로파일: 기본 `hcg` (v1 선택지 1개)
    - 프로젝트명 (`{{PROJECT_NAME}}`)
    - 앱 레이아웃: `apps/web`(모노레포, 기본) — v1은 이 값 고정 권장
+   - codex 리뷰 게이트: **사용(기본)** / 사용 안 함 — qa 의 Phase 완료 검증을 외부 모델(codex)
+     적대적 리뷰로 보강할지. "사용 안 함"이면 codex 배선(래퍼·package.json 스크립트)이 생성되지
+     않고 qa 는 자체 검증(테스트·빌드·타입·린트)으로 Phase 를 닫는다.
 4. **init 실행**:
    `node "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.mjs" --mode init --profile hcg --project-name "<NAME>" --app-dir apps/web --profiles-dir "${CLAUDE_PLUGIN_ROOT}/profiles" --target "${CLAUDE_PROJECT_DIR}"`
+   (3단계에서 "codex 사용 안 함"을 선택했으면 명령 끝에 `--no-codex` 를 붙인다.)
 5. **결과 해석**:
    - JSON `ok:false, blocked:true` → 비어있지 않은 폴더. 사용자에게 `--gap-fill` 또는 `--force` 재실행을 제안(동의 시 해당 플래그로 다시 4단계).
    - JSON `ok:false, error` → 오류 그대로 보고.
    - JSON `ok:true` → 생성 파일 요약 + `setupCommands`를 코드블록으로 안내. 사용자가 원하면 실행.
+   - `--no-codex` 로 실행했다면 함께 고지: "codex 게이트 제외됨 — qa 는 자체 검증(테스트·빌드·
+     타입·린트)으로 Phase 를 닫습니다. 코드 리뷰가 필요하면 내장 `review` 워크플로를 수동 실행
+     하세요. 사후 활성화는 `docs/install.md` §2e."
 6. **AX 표준 설치 (부가 단계 — 4단계 성공 시에만. 실패해도 init 은 성공)**:
    `node "${CLAUDE_PLUGIN_ROOT}/scripts/install-ax.mjs"` 를 실행하고 JSON 결과를 해석한다.
    - `ok:true, status:"already-installed"` → "AX 스킬 4종 이미 설치됨" 한 줄 보고.

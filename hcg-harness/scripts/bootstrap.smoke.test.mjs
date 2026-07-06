@@ -44,3 +44,31 @@ test("init then upgrade round-trip on a temp dir", () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("init --no-codex: 래퍼 미생성·package.json 무 codex·마커 기록, upgrade 에도 지속", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "hcg-nocodex-"));
+  try {
+    const code = main(
+      ["--mode", "init", "--profile", "hcg", "--project-name", "Smoke", "--app-dir", "apps/web",
+       "--profiles-dir", PROFILES, "--target", dir, "--no-codex"],
+      { log: () => {}, now: () => "2026-01-01T00:00:00Z" }
+    );
+    assert.equal(code, 0);
+    assert.ok(!existsSync(path.join(dir, "scripts", "codex-review.mjs")), "래퍼 미생성");
+    const pkg = JSON.parse(readFileSync(path.join(dir, "apps", "web", "package.json"), "utf8"));
+    assert.equal(pkg.scripts["codex:review"], undefined, "codex:review 스크립트 없음");
+    assert.equal(pkg.scripts["test:e2e"], "playwright test", "인접 스크립트 무손상(JSON 유효)");
+    assert.match(readFileSync(path.join(dir, "CLAUDE.md"), "utf8"), /codex 게이트\*\*: 미사용/);
+    const marker = JSON.parse(readFileSync(path.join(dir, ".claude", ".hcg-harness.json"), "utf8"));
+    assert.equal(marker.choices.codex, false);
+
+    const up = main(
+      ["--mode", "upgrade", "--profile", "hcg", "--profiles-dir", PROFILES, "--target", dir],
+      { log: () => {}, now: () => "2026-01-02T00:00:00Z" }
+    );
+    assert.equal(up, 0);
+    assert.ok(!existsSync(path.join(dir, "scripts", "codex-review.mjs")), "upgrade 후에도 미부활");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

@@ -9,6 +9,7 @@ import {
   parsePhaseGatesLineBased,
   findUngatedPhases,
   formatWarning,
+  isCodexOptedOut,
 } from "./phase-gate-check.mjs";
 
 const META = `phases:
@@ -71,4 +72,13 @@ test("formatWarning lists the phases", () => {
   const w = formatWarning([{ id: 2, title: "Add search" }]);
   assert.match(w, /Phase 2: Add search/);
   assert.match(w, /codex/i);
+});
+
+test("isCodexOptedOut: choices.codex === false 만 true", () => {
+  assert.equal(isCodexOptedOut({ choices: { codex: false } }), true);
+  assert.equal(isCodexOptedOut({ choices: { codex: true } }), false);
+  assert.equal(isCodexOptedOut({ choices: {} }), false);
+  assert.equal(isCodexOptedOut({}), false);
+  assert.equal(isCodexOptedOut(null), false);
+  assert.equal(isCodexOptedOut("garbage"), false);
 });

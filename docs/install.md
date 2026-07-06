@@ -213,6 +213,17 @@ qa-agent의 Phase 완료 게이트(`codex-review` 스킬)는 `pnpm codex:review 
 
 배선 전까지 codex 게이트는 사용 불가 — qa는 거짓 PASS 대신 "리뷰 불가"를 표면화한다.
 
+> **opt-out**: `/hcg-harness:init` 3단계에서 "codex 리뷰 게이트 사용 안 함"을 선택하면
+> (`bootstrap.mjs --no-codex`) 이 래퍼·`package.json` 스크립트가 아예 생성되지 않고, 마커
+> `.claude/.hcg-harness.json` 에 `choices.codex: false` 로 기록된다(`/hcg-harness:upgrade` 에도
+> 지속 — 래퍼가 부활하지 않는다). qa 는 자체 검증(테스트·빌드·타입·린트)으로 Phase 를 닫고
+> Stop 훅(phase-gate-check)도 경고하지 않는다.
+>
+> **사후 활성화**: 마커의 `choices.codex` 를 `true` 로 수정한 뒤 `/hcg-harness:upgrade` 를
+> 실행하면 래퍼(`scripts/codex-review.mjs`)가 생성된다. 단 `package.json` 은 user-owned 라
+> upgrade 가 덮어쓰지 않으므로 `"codex:review": "node ../../scripts/codex-review.mjs"` 스크립트는
+> 직접 추가한다 — 또는 이 §2e 수동 배선 절차를 그대로 수행해도 된다.
+
 ---
 
 ## 3. 설치 검증 (rung-4, 수동)

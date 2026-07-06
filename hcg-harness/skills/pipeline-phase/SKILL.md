@@ -32,7 +32,7 @@ description: 신규 Phase를 선언/종료할 때 따르는 의무 절차 — ph
        critical_high_count: null
    ```
 
-   **`base_sha`는 반드시 Phase 선언 직전의 git HEAD여야 한다.** 이 값은 *캡처*(git 실행)와 *기록*(phase-meta 작성)을 분리한다 — **Bash 가능 컨텍스트(오케스트레이터 메인 스레드 또는 Bash 보유 에이전트)가 `git rev-parse HEAD`로 캡처**해 Phase 선언자에게 제공하고, Phase 선언자(read-only 역할일 수 있음)는 그 값을 phase-meta에 **기록만** 한다. Phase 선언자가 git을 직접 실행한다고 가정하지 말 것이며, `.git` 직독 같은 fragile 우회(packed refs/detached HEAD/worktree에서 비등가)에 의존하지 않는다. 이 SHA는 Phase 완료 검증 시 `pnpm codex:review <base_sha>`로 누적 diff를 분석하는 데 사용된다(→ `codex-review` 스킬). 누락 시 codex review를 수행할 수 없으므로 Phase가 정상 종료될 수 없다(codex 게이트 단계가 차단).
+   **`base_sha`는 반드시 Phase 선언 직전의 git HEAD여야 한다.** 이 값은 *캡처*(git 실행)와 *기록*(phase-meta 작성)을 분리한다 — **Bash 가능 컨텍스트(오케스트레이터 메인 스레드 또는 Bash 보유 에이전트)가 `git rev-parse HEAD`로 캡처**해 Phase 선언자에게 제공하고, Phase 선언자(read-only 역할일 수 있음)는 그 값을 phase-meta에 **기록만** 한다. Phase 선언자가 git을 직접 실행한다고 가정하지 말 것이며, `.git` 직독 같은 fragile 우회(packed refs/detached HEAD/worktree에서 비등가)에 의존하지 않는다. 이 SHA는 Phase 완료 검증 시 `pnpm codex:review <base_sha>`로 누적 diff를 분석하는 데 사용된다(→ `codex-review` 스킬). 누락 시 codex review를 수행할 수 없으므로 Phase가 정상 종료될 수 없다(codex 게이트 단계가 차단; opt-out 프로젝트 — 마커 choices.codex=false — 는 해당 없음, 자체 검증으로 종료).
 
 3. **`tasks/TODO.md` 인덱스 업데이트**: "## 진행중" 표에 한 줄 추가. TODO.md는 인덱스(50줄 이내 유지)이며 상세는 phase 파일이 보유한다.
 

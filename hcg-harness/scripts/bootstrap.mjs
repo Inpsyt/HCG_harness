@@ -128,18 +128,31 @@ function walkRel(rootDir, rel, fs) {
 /** dir 하위 모든 파일의 POSIX 상대경로 + 내용. */
 export function walkTemplates(dir, fs = NODE_FS) { return walkRel(dir, "", fs); }
 
-/** walk → 경로·내용 토큰 치환 → 경로 정규화 → isUserOwned로 managed 결정. */
+/** walk → 경로·내용 토큰 치환 → 경로 정규화 → isUserOwned로 managed 결정.
+ *  choices.codex === false 면 CODEX_* 토큰을 off 값으로 렌더하고 profile.codexFiles 를 제외한다. */
 export function renderProfile({ templatesDir, profile, choices, fs = NODE_FS }) {
-  const tokens = { PROJECT_NAME: choices.projectName, APP_DIR: choices.appDir, PROJECT_SLUG: slugify(choices.projectName) };
+  const codex = choices.codex !== false;
+  const tokens = {
+    PROJECT_NAME: choices.projectName,
+    APP_DIR: choices.appDir,
+    PROJECT_SLUG: slugify(choices.projectName),
+    CODEX_PKG_SCRIPT: codex ? ',\n    "codex:review": "node ../../scripts/codex-review.mjs"' : "",
+    CODEX_CLAUDE_LINE: codex
+      ? '- **codex 게이트 래퍼**(qa Phase 완료 검증용): `scripts/codex-review.mjs` + `package.json` 의 `"codex:review"` 스크립트. 설치·배선은 `docs/install.md` 참조. (codex-companion 플러그인 의존.)'
+      : '- **codex 게이트**: 미사용 (init 에서 제외). qa 는 자체 검증(테스트·빌드·타입·린트)으로 Phase 를 닫는다. 코드 리뷰가 필요하면 내장 `review` 워크플로를 수동 실행. (사후 활성화: `docs/install.md` §2e.)',
+  };
+  const excluded = new Set(codex ? [] : (profile.codexFiles || []).map(toPosix));
   const files = walkRel(templatesDir, "", fs);
-  return files.map(({ relPath, content }) => {
-    const outPath = toPosix(substituteTokens(relPath, tokens));
-    return {
-      relPath: outPath,
-      content: substituteTokens(content, tokens),
-      managed: !isUserOwned(outPath, profile.userOwnedGlobs),
-    };
-  });
+  return files
+    .map(({ relPath, content }) => {
+      const outPath = toPosix(substituteTokens(relPath, tokens));
+      return {
+        relPath: outPath,
+        content: substituteTokens(content, tokens),
+        managed: !isUserOwned(outPath, profile.userOwnedGlobs),
+      };
+    })
+    .filter((f) => !excluded.has(f.relPath));
 }
 
 // ── Task 5: 마커 + 매니페스트 read/write ─────────────────────────────────────
@@ -232,7 +245,7 @@ export function planInit({ rendered, existing, mode = "strict" }) {
 // ── Task 8: IO 적용 + CLI main() (init·upgrade) ──────────────────────────────
 
 export function parseArgs(argv) {
-  const a = { mode: null, profile: null, projectName: null, appDir: null, target: null, profilesDir: null, initMode: "strict" };
+  const a = { mode: null, profile: null, projectName: null, appDir: null, target: null, profilesDir: null, initMode: "strict", codex: true };
   for (let i = 0; i < argv.length; i++) {
     const t = argv[i];
     const next = () => argv[++i];
@@ -244,6 +257,7 @@ export function parseArgs(argv) {
     else if (t === "--profiles-dir") a.profilesDir = next();
     else if (t === "--force") a.initMode = "force";
     else if (t === "--gap-fill") a.initMode = "gap-fill";
+    else if (t === "--no-codex") a.codex = false;
   }
   if (!a.target) a.target = process.env.CLAUDE_PROJECT_DIR || process.cwd();
   if (!a.profilesDir) {
@@ -295,7 +309,7 @@ export function main(argv, deps = {}) {
         hint: "이미 부트스트랩된 프로젝트입니다(.claude/.hcg-harness.json 존재). 템플릿 갱신은 /hcg-harness:upgrade 를, 재생성을 강제하려면 --force 를 사용하세요." }));
       return 1;
     }
-    const choices = { projectName: args.projectName || profile.id, appDir: args.appDir || profile.appDir };
+    const choices = { projectName: args.projectName || profile.id, appDir: args.appDir || profile.appDir, codex: args.codex };
     let rendered;
     try { rendered = renderProfile({ templatesDir, profile, choices, fs }); }
     catch (e) { log(JSON.stringify({ ok: false, error: `render failed: ${e.message}` })); return 1; }
@@ -322,7 +336,7 @@ export function main(argv, deps = {}) {
   if (args.mode === "upgrade") {
     const prev = readMarker(args.target, fs);
     if (!prev) { log(JSON.stringify({ ok: false, error: "마커가 없습니다. 먼저 /hcg-harness:init 를 실행하세요." })); return 1; }
-    const choices = { projectName: prev.choices?.projectName || profile.id, appDir: prev.choices?.appDir || profile.appDir };
+    const choices = { projectName: prev.choices?.projectName || profile.id, appDir: prev.choices?.appDir || profile.appDir, codex: prev.choices?.codex !== false };
     let rendered;
     try { rendered = renderProfile({ templatesDir, profile, choices, fs }); }
     catch (e) { log(JSON.stringify({ ok: false, error: `render failed: ${e.message}` })); return 1; }

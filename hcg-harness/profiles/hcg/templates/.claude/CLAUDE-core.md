@@ -39,7 +39,7 @@ plan-agent 완료 후 오케스트레이터는 **구현 dispatch(②③④) 전�
 - fast-path여도 **직접 코드 수정은 여전히 금지** — 단일 담당 에이전트(②③④ 중 하나)로 라우팅하고 그 에이전트가 검증(tsc/lint/build/test)까지 수행한다.
 - **검수자(qa-agent)는 구현자와 동급(Opus) 유지** — 비용 절감은 qa 모델 강등이 아니라 이 fast-path(plan 세리머니 생략)로 한다.
 
-**fast-path 내 codex 하위 결정** (게이트 통과와 별개):
+**fast-path 내 codex 하위 결정** (게이트 통과와 별개 — opt-out 프로젝트(마커 choices.codex=false)는 codex 게이트가 없으므로 이 하위 결정 자체가 해당 없음):
 - 새 실행 로직(분기 / 정규식 / async / 상태 변화) 추가 → qa-agent + codex 게이트 **유지**(codex가 잡을 게 있음).
 - 순수 상수 / 설정값 / 주석 / 카피, **새 분기 0** → 빌드·타입·lint·grep 검증으로 충분, codex 생략 가능.
 

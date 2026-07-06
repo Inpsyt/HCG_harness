@@ -12,8 +12,7 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:e2e": "playwright test",
-    "codex:review": "node ../../scripts/codex-review.mjs"
+    "test:e2e": "playwright test"{{CODEX_PKG_SCRIPT}}
   },
   "dependencies": {
     "next": "^15.0.0",

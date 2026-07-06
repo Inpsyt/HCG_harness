@@ -118,6 +118,12 @@ export function formatWarning(phases) {
   return lines.join("\n");
 }
 
+/** 마커(.claude/.hcg-harness.json)가 codex 게이트 opt-out 을 기록했는지. 오직 choices.codex === false 만 true. */
+export function isCodexOptedOut(marker) {
+  return !!marker && typeof marker === "object" && marker.choices != null &&
+    typeof marker.choices === "object" && marker.choices.codex === false;
+}
+
 function safeRead(file) {
   try {
     return readFileSync(file, "utf8");
@@ -140,6 +146,14 @@ async function main() {
     process.env.PHASE_GATE_PROJECT_ROOT ||
     (typeof payload.cwd === "string" && payload.cwd) ||
     DEFAULT_PROJECT_ROOT;
+
+  // codex opt-out 프로젝트(마커 choices.codex=false)는 게이트 자체가 없다 — 경고 없이 통과.
+  const markerText = safeRead(path.join(projectRoot, ".claude", ".hcg-harness.json"));
+  if (markerText) {
+    try {
+      if (isCodexOptedOut(JSON.parse(markerText))) process.exit(0);
+    } catch { /* 파싱 실패 = opt-out 아님 (fail-open 스탠스 유지) */ }
+  }
 
   let ungated = [];
   try {

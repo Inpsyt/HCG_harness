@@ -9,6 +9,12 @@ Phase 전체 완료를 검증할 때, Claude(qa) 시각만으로는 잡기 어�
 
 ## 적용 조건
 
+- **opt-out 확인 (선결)**: `.claude/.hcg-harness.json` 마커의 `choices.codex === false` 면 이
+  게이트 전체를 스킵한다 — `tasks/phase-meta.yml` 해당 Phase 에
+  `codex_review: { executed: false, skipped: "opt-out" }` 기록, Phase 판정은 qa 자체 검증
+  (verification-ladder rung 1-2: 테스트·빌드·타입·린트)으로 진행, 원하면 내장 `review` 워크플로
+  수동 실행을 안내(비필수). 마커 부재·파싱 실패·codex 필드 없음은 opt-out 이 **아니다**(아래
+  현행 절차 진행). Stop 훅(phase-gate-check)도 같은 마커를 읽어 opt-out 프로젝트는 경고하지 않는다.
 - 본 검증이 **"Phase 전체 완료 검증"** 인 경우만 실행한다.
 - 개별 Task QA, 부분 재검증에서는 스킵한다.
 - `tasks/phase-meta.yml`에 해당 Phase의 `base_sha`가 기록되어 있어야 한다 (없으면 메타 등록을 먼저 요청 — `pipeline-phase` 스킬 참조).

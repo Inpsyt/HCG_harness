@@ -13,6 +13,9 @@
     "scripts/codex-review.mjs",
     "apps/web/**"
   ],
+  "codexFiles": [
+    "scripts/codex-review.mjs"
+  ],
   "setupCommands": [
     "pnpm install",
     "pnpm prisma generate",

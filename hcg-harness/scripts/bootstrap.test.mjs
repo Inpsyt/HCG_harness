@@ -444,3 +444,147 @@ test("main init refuses on already-bootstrapped project, bypasses with --force",
   const report3 = JSON.parse(out3[0]);
   assert.equal(report3.ok, true, "forced init must have ok:true");
 });
+
+// ── codex opt-out: 토큰 · 파일 제외 · 마커 지속 ─────────────────────────────
+
+test("parseArgs: --no-codex 는 codex=false, 기본은 true", () => {
+  assert.equal(parseArgs([]).codex, true);
+  assert.equal(parseArgs(["--no-codex"]).codex, false);
+});
+
+test("renderProfile: codex 기본(on) — CODEX 토큰이 배선 값으로 렌더", () => {
+  const fs = walkFs({ "pkg.json": '"test:e2e": "playwright test"{{CODEX_PKG_SCRIPT}}' });
+  const rendered = renderProfile({
+    templatesDir: "/T", profile: { userOwnedGlobs: [] },
+    choices: { projectName: "Acme", appDir: "apps/web" }, fs,
+  });
+  assert.equal(rendered[0].content,
+    '"test:e2e": "playwright test",\n    "codex:review": "node ../../scripts/codex-review.mjs"');
+});
+
+test("renderProfile: codex off — CODEX_PKG_SCRIPT 빈 문자열 + codexFiles 제외", () => {
+  const fs = walkFs({
+    "pkg.json": '"test:e2e": "playwright test"{{CODEX_PKG_SCRIPT}}',
+    "scripts/codex-review.mjs": "// wrapper",
+  });
+  const rendered = renderProfile({
+    templatesDir: "/T",
+    profile: { userOwnedGlobs: [], codexFiles: ["scripts/codex-review.mjs"] },
+    choices: { projectName: "Acme", appDir: "apps/web", codex: false }, fs,
+  });
+  const paths = rendered.map((f) => f.relPath);
+  assert.ok(!paths.includes("scripts/codex-review.mjs"), "codexFiles 는 렌더에서 제외");
+  assert.equal(rendered.find((f) => f.relPath === "pkg.json").content,
+    '"test:e2e": "playwright test"');
+});
+
+test("renderProfile: codex off + CODEX_CLAUDE_LINE 은 미사용 문구", () => {
+  const fs = walkFs({ "CLAUDE.md": "{{CODEX_CLAUDE_LINE}}" });
+  const off = renderProfile({
+    templatesDir: "/T", profile: { userOwnedGlobs: [] },
+    choices: { projectName: "A", appDir: "apps/web", codex: false }, fs,
+  })[0].content;
+  assert.match(off, /codex 게이트\*\*: 미사용/);
+  const on = renderProfile({
+    templatesDir: "/T", profile: { userOwnedGlobs: [] },
+    choices: { projectName: "A", appDir: "apps/web" }, fs,
+  })[0].content;
+  assert.match(on, /codex 게이트 래퍼/);
+});
+
+test("main init --no-codex: 마커 choices.codex=false 기록, upgrade 가 재사용", () => {
+  const store = {};
+  const norm = (p) => p.replace(/\\/g, "/");
+  const profile = { id: "hcg", label: "HCG", appDir: "apps/web", setupCommands: [],
+    userOwnedGlobs: [], codexFiles: ["scripts/codex-review.mjs"] };
+  const fs = {
+    readdirSync: (dir) => {
+      const d = norm(dir);
+      if (d.endsWith("/profiles")) return [{ name: "hcg", isDirectory: () => true }];
+      const base = "/profiles/hcg/templates";
+      if (d === base) return [
+        { name: "scripts", isDirectory: () => true },
+        { name: "CLAUDE.md", isDirectory: () => false },
+      ];
+      if (d === base + "/scripts") return [{ name: "codex-review.mjs", isDirectory: () => false }];
+      return [];
+    },
+    readFileSync: (p) => {
+      const f = norm(p);
+      if (f.endsWith("/profiles/hcg/profile.json")) return JSON.stringify(profile);
+      if (f.endsWith("/templates/scripts/codex-review.mjs")) return "// wrapper";
+      if (f.endsWith("/templates/CLAUDE.md")) return "{{CODEX_CLAUDE_LINE}}";
+      if (store[f] != null) return store[f];
+      const e = new Error("ENOENT"); e.code = "ENOENT"; throw e;
+    },
+    existsSync: (p) => { const f = norm(p); return f.endsWith("profile.json") || f in store; },
+    mkdirSync: () => {},
+    writeFileSync: (p, c) => { store[norm(p)] = c; },
+  };
+  const log = () => {};
+  const code = main(
+    ["--mode", "init", "--profile", "hcg", "--project-name", "Acme", "--app-dir", "apps/web",
+     "--target", "/proj", "--profiles-dir", "/profiles", "--no-codex"],
+    { fs, log }
+  );
+  assert.equal(code, 0);
+  assert.equal(store["/proj/scripts/codex-review.mjs"], undefined, "래퍼 미생성");
+  const marker = JSON.parse(store["/proj/.claude/.hcg-harness.json"]);
+  assert.equal(marker.choices.codex, false, "마커에 opt-out 기록");
+  assert.match(store["/proj/CLAUDE.md"], /미사용/);
+
+  // upgrade (플래그 없이) — prev.choices.codex 재사용 → 래퍼 부활 금지
+  const up = main(
+    ["--mode", "upgrade", "--profile", "hcg", "--profiles-dir", "/profiles", "--target", "/proj"],
+    { fs, log }
+  );
+  assert.equal(up, 0);
+  assert.equal(store["/proj/scripts/codex-review.mjs"], undefined, "upgrade 후에도 래퍼 미부활");
+  const marker2 = JSON.parse(store["/proj/.claude/.hcg-harness.json"]);
+  assert.equal(marker2.choices.codex, false, "upgrade 후 opt-out 유지");
+});
+
+test("main init 기본(codex on): 마커 choices.codex=true", () => {
+  const store = {};
+  const norm = (p) => p.replace(/\\/g, "/");
+  const profile = { id: "hcg", label: "HCG", appDir: "apps/web", setupCommands: [],
+    userOwnedGlobs: [], codexFiles: ["scripts/codex-review.mjs"] };
+  const fs = {
+    readdirSync: (dir) => {
+      const d = norm(dir);
+      if (d.endsWith("/profiles")) return [{ name: "hcg", isDirectory: () => true }];
+      if (d === "/profiles/hcg/templates") return [{ name: "scripts", isDirectory: () => true }];
+      if (d === "/profiles/hcg/templates/scripts") return [{ name: "codex-review.mjs", isDirectory: () => false }];
+      return [];
+    },
+    readFileSync: (p) => {
+      const f = norm(p);
+      if (f.endsWith("/profiles/hcg/profile.json")) return JSON.stringify(profile);
+      if (f.endsWith("/templates/scripts/codex-review.mjs")) return "// wrapper";
+      if (store[f] != null) return store[f];
+      const e = new Error("ENOENT"); e.code = "ENOENT"; throw e;
+    },
+    existsSync: (p) => { const f = norm(p); return f.endsWith("profile.json") || f in store; },
+    mkdirSync: () => {},
+    writeFileSync: (p, c) => { store[norm(p)] = c; },
+  };
+  const code = main(
+    ["--mode", "init", "--profile", "hcg", "--project-name", "Acme", "--app-dir", "apps/web",
+     "--target", "/proj", "--profiles-dir", "/profiles"],
+    { fs, log: () => {} }
+  );
+  assert.equal(code, 0);
+  assert.equal(store["/proj/scripts/codex-review.mjs"], "// wrapper", "기본 경로는 래퍼 생성");
+  assert.equal(JSON.parse(store["/proj/.claude/.hcg-harness.json"]).choices.codex, true);
+
+  // 하위호환: 마커에서 codex 필드를 지워도(구버전 init 마커) upgrade 는 codex=on 으로 동작.
+  const legacy = JSON.parse(store["/proj/.claude/.hcg-harness.json"]);
+  delete legacy.choices.codex;
+  store["/proj/.claude/.hcg-harness.json"] = JSON.stringify(legacy);
+  const up = main(
+    ["--mode", "upgrade", "--profile", "hcg", "--profiles-dir", "/profiles", "--target", "/proj"],
+    { fs, log: () => {} }
+  );
+  assert.equal(up, 0);
+  assert.equal(store["/proj/scripts/codex-review.mjs"], "// wrapper", "구마커(필드 없음)는 on 으로 간주 — 래퍼 유지");
+});
