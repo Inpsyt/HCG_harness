@@ -8,3 +8,6 @@ Thumbs.db
 
 # logs
 *.log
+
+# 로컬 프로세스 문서 (스펙·계획 — 커밋/푸시 제외)
+docs/superpowers/
