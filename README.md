@@ -88,6 +88,29 @@ pnpm dev                      # http://localhost:3000
 
 ---
 
+## 플러그인 업데이트 (이미 쓰고 있는 프로젝트)
+
+이 레포에 새 버전이 푸시되어도 소비 프로젝트에 **자동 반영되지 않는다**. 실무 프로젝트마다 아래 순서로 갱신한다.
+
+**① 터미널 — 마켓플레이스 갱신 + 플러그인 업데이트**
+```bash
+claude plugin marketplace update hcg-harness-marketplace   # 마켓플레이스 소스(git/로컬) 최신화
+claude plugin update hcg-harness                           # 또는 세션에서 /plugin 메뉴 → 업데이트
+claude plugin list                                         # 확인: hcg-harness 새 버전
+```
+
+**② 세션 재시작** — 플러그인이 서빙하는 스킬·훅·에이전트·커맨드·워크플로는 새 세션부터 새 버전으로 동작한다.
+
+**③ (템플릿 변경이 포함된 릴리스면) 프로젝트 파일 재동기화**
+```
+/hcg-harness:upgrade
+```
+`/hcg-harness:init`으로 프로젝트 안에 이미 생성된 하네스 관리 파일은 플러그인 업데이트만으로는 바뀌지 않는다. `upgrade`가 마커+매니페스트(해시) 기반으로 사용자 수정은 보존하고 하네스 관리 파일만 재생성한다(충돌 시 `.new`로 생성).
+
+> **배포 측 규칙**: 내용 변경을 푸시할 때는 `plugin.json` · `marketplace.json`의 `version`을 반드시 올린다. 버전이 그대로면 소비 측에서 "이미 최신"으로 판단해 업데이트가 감지되지 않을 수 있다.
+
+---
+
 ## 수동 설치 (대안)
 
 기존 프로젝트에 하네스를 얹거나 자동 부트스트랩 없이 설치할 때의 방법이다.
@@ -126,3 +149,21 @@ claude plugin install hcg-harness@hcg-harness-marketplace
 - **쓰기 2종**(`migrate`·`test-gen`)은 git worktree 격리 + 파일 소유 분리로 병렬 충돌을 막는다. merge-back은 `// CUSTOMIZE` 시임이라 소비 프로젝트가 배선한다.
 - 이들은 **검증된 출발점 템플릿**이지 완성된 codemod/test 엔진이 아니다 — 게이트 명령·merge-back·캡 등은 프로젝트가 customizing·재검증한다(`workflows/README.md` §6).
 - 워크플로 기능은 소비 프로젝트에서 활성화돼 있어야 한다(`disableWorkflows` / env `CLAUDE_CODE_DISABLE_WORKFLOWS`로 게이트).
+
+---
+
+## 변경 이력
+
+### 0.1.1 — 2026-07-07
+
+0.1.0 표기 이후 누적된 변경분 릴리스. 기존 설치 프로젝트는 위 **플러그인 업데이트** 절차로 반영한다(①·②는 필수, 이번 릴리스는 init 템플릿 변경을 포함하므로 부트스트랩된 프로젝트는 ③ `/hcg-harness:upgrade`도 권장).
+
+- **설계 승인 체크포인트(①.5)**: pipeline에 plan 완료 → 사용자 설계 승인 → 구현 dispatch 순서를 강제. 승인 전 구현 에이전트 투입 금지.
+- **AX UI 표준 통합**: init이 AX 스킬 4종을 자동 설치(`install-ax`)하고, 내장 `ui-standard` 스킬 + `contracts/design-guide` 시드를 제공.
+- **codex 리뷰 게이트 opt-in/out**: init에서 사용 여부를 선택. `--no-codex` 시 codex 관련 파일 렌더 제외, 선택이 마커에 기록되어 upgrade에도 지속, 게이트/훅이 opt-out을 인지.
+- **engines 가드**: 생성되는 `package.json`에 `node>=20` / `pnpm>=9` 명시.
+- **버전 표기 동기화**: `plugin.json` · `marketplace.json` · `package.json` · bootstrap 마커 fallback을 0.1.1로 통일.
+
+### 0.1.0 — 2026-06-24
+
+초기 릴리스 — 포터블 하네스(5 agent shell · 프로세스/스택 스킬 · 4 hooks · 5 workflows) + `/hcg-harness:init` · `:upgrade` 자동 부트스트랩(HCG 프로파일).
