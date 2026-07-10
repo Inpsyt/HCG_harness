@@ -1,23 +1,41 @@
 #!/usr/bin/env node
 // hooks/contracts-guard.mjs
 //
-// PreToolUse guard hook (portable harness). Two independent, command/path-pattern
-// based guards (NO agent identity — see the IMPORTANT note below):
+// PreToolUse guard hook (portable harness). Three independent, command/path-
+// pattern based guards (NO agent identity — see the IMPORTANT note below):
 //
 //   G1  contracts lock — Edit/Write/MultiEdit/NotebookEdit whose target file is
 //       under the contracts dir (default "contracts") is DENIED unless contracts
-//       are explicitly unlocked via env HARNESS_CONTRACTS_WRITE. This turns the
-//       prose rule "contracts/ is read-only; only the plan/orchestration role
-//       authors it" into a real lock: an implementer agent that strays into a
-//       contract file mid-pipeline (env unset) is blocked. Authoring/updating a
-//       contract becomes a deliberate, auditable unlock step.
+//       are explicitly unlocked (see UNLOCK below). This turns the prose rule
+//       "contracts/ is read-only; only the plan/orchestration role authors it"
+//       into a real lock: an implementer agent that strays into a contract file
+//       mid-pipeline is blocked. Authoring/updating a contract becomes a
+//       deliberate, auditable unlock step.
 //
-//   G2  destructive-command guard — a Bash command matching a curated set of
-//       irreversible/catastrophic patterns (prisma migrate reset, prisma db push
-//       --force-reset/--accept-data-loss, SQL DROP DATABASE/TABLE/SCHEMA,
-//       TRUNCATE TABLE, `rm -rf` on a filesystem/home root, `git push --force`)
-//       is DENIED unless disabled via env HARNESS_DISABLE_DESTRUCTIVE_GUARD.
-//       Aligns with Operating Rules §0 (reversibility / safety first).
+//   G2  destructive-command guard — a Bash/PowerShell command matching a curated
+//       set of irreversible/catastrophic patterns (prisma migrate reset, prisma
+//       db push --force-reset/--accept-data-loss, SQL DROP DATABASE/TABLE/SCHEMA,
+//       TRUNCATE TABLE, `rm -rf` / `Remove-Item -Recurse -Force` on a
+//       filesystem/home root, `git push --force`) is DENIED unless disabled via
+//       env HARNESS_DISABLE_DESTRUCTIVE_GUARD. Aligns with Operating Rules §0
+//       (reversibility / safety first).
+//
+//   G3  shell-write-into-contracts guard — a Bash/PowerShell command that WRITES
+//       into the contracts dir (redirection `>`/`>>`, `tee`, in-place `sed`/
+//       `perl -i`, `rm`/`mv`/`touch`/`cp`-as-dest, PS write cmdlets like
+//       Set-Content/Out-File/Remove-Item) is DENIED under the same lock as G1.
+//       Closes the obvious G1 bypass (`echo x > contracts/api-spec.md`). This is
+//       a curated HEURISTIC: read-only commands (cat/grep/git diff/cp FROM
+//       contracts) pass; exotic writers may slip through; an over-match is
+//       relieved by the same unlock. Segments split on |, ;, && before matching.
+//
+// UNLOCK (G1+G3 share it) — either of:
+//   - env HARNESS_CONTRACTS_WRITE=1 (session/launch scoped), or
+//   - sentinel file `.claude/contracts-unlock` in the project root (existence
+//     check; content ignored). The sentinel is the IN-SESSION unlock: hook env
+//     is fixed at Claude Code startup, so a running plan/orchestration role
+//     cannot set env for its own next tool call — but it CAN Write the sentinel,
+//     edit contracts, then delete it. Deliberate, auditable, lockable again.
 //
 // IMPORTANT — why a LOCK, not "allow plan / deny others":
 //   The PreToolUse stdin payload is { session_id, cwd, hook_event_name,
@@ -25,9 +43,12 @@
 //   the Claude Code hooks docs). A hook therefore cannot tell WHICH subagent is
 //   calling, so per-agent scoping ("is this plan-agent?") is impossible from the
 //   hook alone. G1 keys on INTENT ("are contracts unlocked right now?") instead
-//   of identity. Also undocumented: whether PreToolUse fires for *subagent* tool
-//   calls at all — if it does not, this guard only covers main-thread calls.
-//   Treat end-to-end subagent coverage as an install-time (rung-4) check.
+//   of identity.
+//   Subagent coverage — MEASURED 2026-07-10 (Claude Code, Windows, plugin hook):
+//   PreToolUse DOES fire for subagent tool calls — a general-purpose subagent's
+//   Write into contracts/ was denied by this guard, same as main-thread. This is
+//   still undocumented upstream, so keep the install-time (rung-4) re-check per
+//   environment (docs/install.md §3).
 //
 // Deny mechanism (Claude Code PreToolUse convention): exit 2 with the reason on
 // stderr — Claude Code cancels the tool call and feeds the reason back to Claude.
@@ -38,14 +59,14 @@
 //   2 = deny  (violation detected; stderr reason is returned to the agent)
 //
 // Environment overrides:
-//   HARNESS_CONTRACTS_WRITE           truthy => unlock contracts writes (G1 off).
+//   HARNESS_CONTRACTS_WRITE           truthy => unlock contracts writes (G1+G3 off).
 //   HARNESS_CONTRACTS_DIR             contracts dir relative to project root
 //                                     (default "contracts").
 //   HARNESS_DISABLE_DESTRUCTIVE_GUARD truthy => disable G2.
 //   CONTRACTS_GUARD_PROJECT_ROOT      override the resolved project root (the
 //                                     launcher maps CLAUDE_PROJECT_DIR into this).
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -54,7 +75,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PROJECT_ROOT = path.resolve(__dirname, "..", "..");
 const DEFAULT_CONTRACTS_DIR = "contracts";
 
+/** In-session unlock sentinel (project-root relative). Existence = unlocked. */
+export const UNLOCK_SENTINEL_REL = ".claude/contracts-unlock";
+
 const WRITE_TOOLS = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
+const COMMAND_TOOLS = new Set(["Bash", "PowerShell"]);
 
 /**
  * Parse the hook stdin payload. Returns the parsed object or null on failure
@@ -123,11 +148,91 @@ export function checkContractsLock(payload, opts) {
     reason:
       `contracts/ is the read-only SSOT — '${rel}' may not be edited here. ` +
       `Contracts are owned by the plan/orchestration role and are LOCKED by ` +
-      `default. To author/update a contract deliberately, set ` +
-      `HARNESS_CONTRACTS_WRITE=1 for that step; otherwise record the needed ` +
+      `default. To author/update a contract deliberately, unlock first: create ` +
+      `the sentinel file '${UNLOCK_SENTINEL_REL}' (and DELETE it when done) or ` +
+      `set HARNESS_CONTRACTS_WRITE=1 at launch. Otherwise record the needed ` +
       `change as a TODO/BUG for the plan role (do not edit contracts/ from an ` +
       `implementer).`,
   };
+}
+
+// ---- G3: shell writes into the contracts dir --------------------------------
+
+/** Strip surrounding quotes and a leading ./ or .\ from a shell token. */
+function stripToken(tok) {
+  return String(tok).replace(/^["']+|["']+$/g, "").replace(/^\.[/\\]/, "");
+}
+
+/** token tester: does this shell token point inside the contracts dir? */
+function makeContractsTokenTester(contractsDir) {
+  const seg = String(contractsDir)
+    .replace(/\\/g, "/")
+    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    .replace(/\//g, "[/\\\\]");
+  const re = new RegExp(`(?:^|[/\\\\])${seg}[/\\\\]`, "i");
+  return (tok) => re.test(stripToken(tok));
+}
+
+/** One command segment (already split on | ; &&): return a violation label or null. */
+function shellWriteViolation(segment, isContracts) {
+  const toks = segment.trim().split(/\s+/).filter(Boolean);
+  const hasContractsTok = toks.some(isContracts);
+
+  // redirection target (`>` / `>>`, incl. fd forms like `2>`)
+  const redir = />{1,2}\s*("[^"]*"|'[^']*'|[^\s<>]+)/g;
+  for (let m; (m = redir.exec(segment)); ) {
+    if (isContracts(m[1])) return "redirection into contracts";
+  }
+  if (!hasContractsTok) return null;
+
+  if (/\btee\b/.test(segment)) return "tee into contracts";
+  if (/\bsed\b[^\n]*(?:\s-[a-zA-Z]*i\b|--in-place\b)/.test(segment))
+    return "in-place sed on contracts";
+  if (/\bperl\b[^\n]*\s-[a-zA-Z]*i/.test(segment)) return "in-place perl on contracts";
+  if (/(?:^|\s)(?:rm|mv|touch|truncate|unlink|del)\b/.test(segment))
+    return "file mutation of contracts";
+  if (
+    /\b(?:Set-Content|Add-Content|Out-File|New-Item|Move-Item|Copy-Item|Remove-Item|Rename-Item|Clear-Content)\b/i.test(
+      segment
+    )
+  )
+    return "PowerShell write cmdlet on contracts";
+  if (/(?:^|\s)cp\b/.test(segment)) {
+    const nonFlags = toks.filter((t) => !t.startsWith("-") && !/^cp$/.test(t));
+    if (nonFlags.length && isContracts(nonFlags[nonFlags.length - 1]))
+      return "cp with contracts as destination";
+  }
+  return null;
+}
+
+/**
+ * G3 — shell write into contracts. Returns { deny, reason }.
+ *   opts: { projectRoot, contractsDir, unlocked }
+ * Same lock as G1 (unlocked bypasses). Curated heuristic — see header.
+ */
+export function checkShellContractsWrite(payload, opts) {
+  const { contractsDir = DEFAULT_CONTRACTS_DIR, unlocked } = opts;
+  if (unlocked) return { deny: false };
+  if (!payload || !COMMAND_TOOLS.has(payload.tool_name)) return { deny: false };
+  const cmd = payload?.tool_input?.command;
+  if (typeof cmd !== "string" || cmd.length === 0) return { deny: false };
+  const isContracts = makeContractsTokenTester(contractsDir);
+  for (const segment of cmd.split(/&&|\|\||;|\|/)) {
+    const label = shellWriteViolation(segment, isContracts);
+    if (label) {
+      return {
+        deny: true,
+        reason:
+          `Blocked a shell write into the contracts dir (${label}). contracts/ ` +
+          `is the read-only SSOT, LOCKED by default — shell writes are the same ` +
+          `violation as an Edit. To author a contract deliberately, create the ` +
+          `sentinel file '${UNLOCK_SENTINEL_REL}' (and DELETE it when done) or ` +
+          `set HARNESS_CONTRACTS_WRITE=1 at launch; otherwise record the change ` +
+          `as a TODO/BUG for the plan role.`,
+      };
+    }
+  }
+  return { deny: false };
 }
 
 // G2 — destructive Bash rules. Each test(cmd) => true means "deny".
@@ -164,6 +269,12 @@ export const DESTRUCTIVE_RULES = [
       /\bgit\s+push\b/.test(c) &&
       (/--force(?!-with-lease)\b/.test(c) || /\s-f\b/.test(c)),
   },
+  {
+    label: "Remove-Item -Recurse -Force on a filesystem/home root",
+    test: (c) =>
+      /\bRemove-Item\b(?=[^\n]*\s-Recurse\b)(?=[^\n]*\s-Force\b)/i.test(c) &&
+      RM_DANGEROUS_TARGET.test(c),
+  },
 ];
 
 /**
@@ -173,7 +284,7 @@ export const DESTRUCTIVE_RULES = [
 export function checkDestructiveBash(payload, opts) {
   const { enabled } = opts;
   if (!enabled) return { deny: false };
-  if (!payload || payload.tool_name !== "Bash") return { deny: false };
+  if (!payload || !COMMAND_TOOLS.has(payload.tool_name)) return { deny: false };
   const cmd = payload?.tool_input?.command;
   if (typeof cmd !== "string" || cmd.length === 0) return { deny: false };
   for (const rule of DESTRUCTIVE_RULES) {
@@ -192,16 +303,24 @@ export function checkDestructiveBash(payload, opts) {
 
 /**
  * Top-level decision for a parsed payload. Returns { deny, reason }.
- * Pure: env + project root are passed in so it is fully testable.
+ * Pure: env, project root, and the sentinel existence check are passed in so it
+ * is fully testable (fileExists defaults to the real fs check).
  */
-export function evaluate(payload, { env = process.env } = {}) {
+export function evaluate(payload, { env = process.env, fileExists = existsSync } = {}) {
   const projectRoot = resolveProjectRoot(payload, env);
-  const contracts = checkContractsLock(payload, {
-    projectRoot,
-    contractsDir: env.HARNESS_CONTRACTS_DIR || DEFAULT_CONTRACTS_DIR,
-    unlocked: isEnvTruthy(env.HARNESS_CONTRACTS_WRITE),
-  });
+  const contractsDir = env.HARNESS_CONTRACTS_DIR || DEFAULT_CONTRACTS_DIR;
+  let unlocked = isEnvTruthy(env.HARNESS_CONTRACTS_WRITE);
+  if (!unlocked) {
+    try {
+      unlocked = !!fileExists(path.resolve(projectRoot, UNLOCK_SENTINEL_REL));
+    } catch {
+      unlocked = false; // sentinel check failure => stay locked (lock is the default)
+    }
+  }
+  const contracts = checkContractsLock(payload, { projectRoot, contractsDir, unlocked });
   if (contracts.deny) return contracts;
+  const shellWrite = checkShellContractsWrite(payload, { projectRoot, contractsDir, unlocked });
+  if (shellWrite.deny) return shellWrite;
   const destructive = checkDestructiveBash(payload, {
     enabled: !isEnvTruthy(env.HARNESS_DISABLE_DESTRUCTIVE_GUARD),
   });

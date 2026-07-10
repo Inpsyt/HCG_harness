@@ -13,6 +13,8 @@ import {
   isUnderDir,
   checkContractsLock,
   checkDestructiveBash,
+  checkShellContractsWrite,
+  UNLOCK_SENTINEL_REL,
   evaluate,
 } from "./contracts-guard.mjs";
 
@@ -143,6 +145,101 @@ test("destructive: git push --force vs --force-with-lease", () => {
 test("destructive: disabled guard and non-Bash tools allow", () => {
   assert.equal(checkDestructiveBash(bash("rm -rf /"), { enabled: false }).deny, false);
   assert.equal(checkDestructiveBash(write("Edit", "a.ts"), { enabled: true }).deny, false);
+});
+
+// ---- G3: shell writes into contracts/ -------------------------------------
+const g3 = (cmd, extra = {}) =>
+  checkShellContractsWrite(bash(cmd), {
+    projectRoot: ROOT, contractsDir: "contracts", unlocked: false, ...extra,
+  });
+const ps = (command) => ({ tool_name: "PowerShell", tool_input: { command } });
+const g3ps = (cmd) =>
+  checkShellContractsWrite(ps(cmd), {
+    projectRoot: ROOT, contractsDir: "contracts", unlocked: false,
+  });
+
+test("shell-write: redirection into contracts blocked, elsewhere allowed", () => {
+  assert.equal(g3("echo hi > contracts/api-spec.md").deny, true);
+  assert.equal(g3("cat notes.md >> contracts/db-schema.md").deny, true);
+  assert.equal(g3("echo hi > ./contracts/x.md").deny, true);
+  assert.equal(g3('echo hi > "contracts/x.md"').deny, true);
+  assert.equal(g3("node run.mjs > out/log.txt").deny, false); // anti-overfit
+  assert.equal(g3("pnpm test 2> err.log").deny, false); // anti-overfit
+});
+
+test("shell-write: tee / sed -i into contracts blocked, reads allowed", () => {
+  assert.equal(g3("echo x | tee contracts/api-spec.md").deny, true);
+  assert.equal(g3("sed -i 's/a/b/' contracts/db-schema.md").deny, true);
+  assert.equal(g3("cat contracts/api-spec.md").deny, false);
+  assert.equal(g3("grep -n foo contracts/db-schema.md").deny, false);
+  assert.equal(g3("git diff contracts/").deny, false);
+  assert.equal(g3("sed -n '1,10p' contracts/api-spec.md").deny, false); // read-only sed
+});
+
+test("shell-write: rm/touch/mv mutate contracts anywhere; cp only as dest", () => {
+  assert.equal(g3("rm contracts/old-spec.md").deny, true);
+  assert.equal(g3("touch contracts/new.md").deny, true);
+  assert.equal(g3("mv contracts/a.md contracts/b.md").deny, true);
+  assert.equal(g3("mv contracts/a.md /tmp/").deny, true); // move OUT still mutates contracts
+  assert.equal(g3("cp docs/x.md contracts/x.md").deny, true); // dest
+  assert.equal(g3("cp contracts/x.md /tmp/backup.md").deny, false); // source = read
+  assert.equal(g3("rm -rf node_modules").deny, false); // anti-overfit
+});
+
+test("shell-write: PowerShell write cmdlets blocked, reads allowed", () => {
+  assert.equal(g3ps('Set-Content -Path contracts\\api-spec.md -Value "x"').deny, true);
+  assert.equal(g3ps('"x" | Out-File contracts/db-schema.md').deny, true);
+  assert.equal(g3ps("Remove-Item contracts\\old.md").deny, true);
+  assert.equal(g3ps("Get-Content contracts/api-spec.md").deny, false);
+  assert.equal(g3ps("Copy-Item docs/a.md contracts/a.md").deny, true);
+});
+
+test("shell-write: unlocked / non-command tools / custom dir", () => {
+  assert.equal(g3("echo hi > contracts/x.md", { unlocked: true }).deny, false);
+  assert.equal(
+    checkShellContractsWrite(write("Edit", "contracts/x.md"), {
+      projectRoot: ROOT, contractsDir: "contracts", unlocked: false,
+    }).deny,
+    false
+  );
+  assert.equal(g3("echo x > spec/api.md", { contractsDir: "spec" }).deny, true);
+  assert.equal(g3("echo x > contracts/x.md", { contractsDir: "spec" }).deny, false);
+});
+
+// ---- G2 extension: PowerShell tool coverage --------------------------------
+test("destructive: PowerShell commands are guarded too", () => {
+  const d = (cmd) => checkDestructiveBash(ps(cmd), { enabled: true }).deny;
+  assert.equal(d("pnpm prisma migrate reset"), true);
+  assert.equal(d('mysql -e "DROP TABLE users"'), true);
+  assert.equal(d("Remove-Item -Recurse -Force C:\\"), true);
+  assert.equal(d("Remove-Item -Force -Recurse ~"), true);
+  assert.equal(d("Remove-Item -Recurse -Force .\\dist"), false); // anti-overfit
+  assert.equal(d("Remove-Item -Recurse .\\dist"), false); // anti-overfit
+});
+
+// ---- unlock sentinel --------------------------------------------------------
+test("evaluate: sentinel file unlocks contracts writes (Edit and shell)", () => {
+  const env = { CONTRACTS_GUARD_PROJECT_ROOT: ROOT };
+  const sentinelAbs = path.resolve(ROOT, UNLOCK_SENTINEL_REL);
+  const withSentinel = (p) => path.resolve(p) === sentinelAbs;
+  const noSentinel = () => false;
+
+  const edit = write("Edit", "contracts/db-schema.md");
+  assert.equal(evaluate(edit, { env, fileExists: noSentinel }).deny, true);
+  assert.equal(evaluate(edit, { env, fileExists: withSentinel }).deny, false);
+
+  const shell = bash("echo x > contracts/db-schema.md");
+  assert.equal(evaluate(shell, { env, fileExists: noSentinel }).deny, true);
+  assert.equal(evaluate(shell, { env, fileExists: withSentinel }).deny, false);
+});
+
+test("evaluate: shell contracts write blocked by default, unlocked by env", () => {
+  const p = bash("echo x >> contracts/api-spec.md");
+  assert.equal(evaluate(p, { env: { CONTRACTS_GUARD_PROJECT_ROOT: ROOT } }).deny, true);
+  assert.equal(
+    evaluate(p, { env: { CONTRACTS_GUARD_PROJECT_ROOT: ROOT, HARNESS_CONTRACTS_WRITE: "1" } }).deny,
+    false
+  );
 });
 
 // ---- evaluate(): env integration -----------------------------------------

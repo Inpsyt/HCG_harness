@@ -5,6 +5,12 @@
 > `contract-authoring` skill prescribes; the agentic `converge` workflow covers the
 > *semantic* drift these deterministic checks can't see.
 >
+> **`/hcg-harness:init` now renders a working `.github/workflows/ci.yml`** into
+> every bootstrapped project — core (lint/tsc/test/build) + the tsc/prisma rows of
+> this drift gate, with an opt-in E2E job. This doc remains the reference for the
+> rows init leaves to you (OpenAPI lint, contract tests, stylelint token guard)
+> and for non-GitHub CI systems.
+>
 > Copy the relevant steps into your CI (GitHub Actions / GitLab CI / etc.) and
 > adjust paths to your project. All checks are **deterministic** — no model calls.
 

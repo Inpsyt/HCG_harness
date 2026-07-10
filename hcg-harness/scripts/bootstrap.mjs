@@ -323,7 +323,7 @@ export function main(argv, deps = {}) {
     }
     applyWrites(args.target, plan.writes, fs);
     const marker = {
-      profile: profile.id, profileVersion: profile.version || "0.0.0", harnessVersion: deps.harnessVersion || "0.1.1",
+      profile: profile.id, profileVersion: profile.version || "0.0.0", harnessVersion: deps.harnessVersion || "0.1.2",
       bootstrappedAt: nowIso(deps), upgradedAt: null, choices, manifest: buildManifest(rendered),
     };
     writeMarker(args.target, marker, fs);

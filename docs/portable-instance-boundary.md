@@ -41,11 +41,17 @@ Genericized so a fresh install needs **no source edits**, only configuration:
 - **Type-check gate** — `POST_EDIT_VERIFY_TSC=1` also runs a project
   `tsc --noEmit` after a clean lint (opt-in: whole-project, so slower).
 - **Contracts lock** — `contracts/` writes are denied by default (PreToolUse
-  `contracts-guard`); set `HARNESS_CONTRACTS_WRITE=1` only for the deliberate
-  contract-authoring step (override the dir with `HARNESS_CONTRACTS_DIR`).
-- **Destructive-command guard** — irreversible Bash (prisma migrate reset, SQL
-  DROP/TRUNCATE, `rm -rf` on a root, `git push --force`) is denied; set
-  `HARNESS_DISABLE_DESTRUCTIVE_GUARD=1` to disable for a step.
+  `contracts-guard`), including shell writes (`echo > contracts/…`, `tee`,
+  in-place `sed`, PS `Set-Content` — the G3 heuristic). Unlock deliberately for
+  the contract-authoring step only: create the sentinel file
+  `.claude/contracts-unlock` (works mid-session — hook env is fixed at Claude
+  Code startup, so a running plan role cannot set env for itself but CAN
+  write/delete the sentinel), or set `HARNESS_CONTRACTS_WRITE=1` at launch.
+  Delete the sentinel when done. Override the dir with `HARNESS_CONTRACTS_DIR`.
+- **Destructive-command guard** — irreversible Bash/PowerShell (prisma migrate
+  reset, SQL DROP/TRUNCATE, `rm -rf` / `Remove-Item -Recurse -Force` on a root,
+  `git push --force`) is denied; set `HARNESS_DISABLE_DESTRUCTIVE_GUARD=1` to
+  disable for a step.
 - **Phase-gate at Stop** — advisory by default; `HARNESS_PHASE_GATE_BLOCK=1` makes
   it block stopping while an in-progress phase's codex gate hasn't run.
 - **Session label** — set env `SESSION_CONTEXT_LABEL` to your project name
@@ -58,11 +64,15 @@ Genericized so a fresh install needs **no source edits**, only configuration:
 > `hook_event_name`, `tool_name`, `tool_input`) carries **no agent identifier**
 > (current Claude Code docs), and no indirect field is documented to distinguish
 > subagents — so true per-agent enforcement is **not possible from a hook today**.
-> The lock therefore correctly keys on intent (`HARNESS_CONTRACTS_WRITE`), not on
-> "which agent is calling". (Per-agent enforcement would need an Anthropic feature
-> request — an `agent_type`/`agent_id` field in the payload.) Whether PreToolUse
-> fires for *subagent* tool calls is also undocumented — confirm end-to-end
-> subagent coverage as a rung-4 install check.
+> The lock therefore correctly keys on intent (unlock sentinel /
+> `HARNESS_CONTRACTS_WRITE`), not on "which agent is calling". (Per-agent
+> enforcement would need an Anthropic feature request — an `agent_type`/`agent_id`
+> field in the payload.) Whether PreToolUse fires for *subagent* tool calls is
+> undocumented upstream, but **measured 2026-07-10** (Claude Code on Windows,
+> plugin-level hook): a general-purpose subagent's `Write` into `contracts/` was
+> denied by this guard exactly like a main-thread call — subagent coverage
+> confirmed in that environment. Undocumented behavior can change; keep the
+> rung-4 install re-check per environment/version.
 >
 > **Hooks are guardrails, not a security boundary.** The regex destructive-guard is
 > evadable (e.g. `find -delete`, `psql -f`, a child-process) — Anthropic and Trail

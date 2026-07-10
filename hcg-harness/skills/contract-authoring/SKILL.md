@@ -43,7 +43,7 @@ description: 공유 계약서(contracts/) 작성·갱신의 포터블 규약 —
 
 ## 변경 절차 (계약은 잠금 자원)
 
-- 계약은 **기본 잠금**이다(PreToolUse `contracts-guard` 가 강제 — `portable-instance-boundary.md`). 의도적 작성/수정 단계에서만 `HARNESS_CONTRACTS_WRITE=1` 로 해제하고, 끝나면 다시 잠근다.
+- 계약은 **기본 잠금**이다(PreToolUse `contracts-guard` 가 강제 — Edit/Write 뿐 아니라 셸 쓰기(`echo > contracts/…`, PS `Set-Content`)도 차단. `portable-instance-boundary.md`). 의도적 작성/수정 단계에서만 해제한다: 센티널 `.claude/contracts-unlock` 생성 → 계약 작성 → **센티널 삭제**(재잠금). hook env 는 기동 시 고정이라 세션 중 해제는 센티널뿐이며, 기동 시라면 `HARNESS_CONTRACTS_WRITE=1` env 도 가능하다.
 - 계약 변경은 **새 Phase 의 일부**로 선언한다(임시 수정 금지) — `pipeline-phase` 스킬 절차를 따른다. 변경 시 영향받는 db/backend/front Task 를 함께 재발급한다.
 - 구현 역할이 불일치를 발견하면 계약을 직접 고치지 않고 `tasks/TODO.md` 에 BUG 로 보고한다(계약 소유자가 판단).
 

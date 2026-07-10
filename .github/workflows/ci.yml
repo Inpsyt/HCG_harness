@@ -1,0 +1,25 @@
+# ci.yml — 플러그인 repo 자체 검증. 훅(contracts-guard/phase-gate/post-edit-verify/
+# session-start)과 bootstrap 엔진의 단위 테스트를 push/PR 마다 기계가 재실행한다.
+# 훅은 경로 처리가 OS 민감하므로 ubuntu + windows 매트릭스로 돈다.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # 잠금파일 없는 repo (optionalDependencies js-yaml 뿐) — npm ci 대신 install
+      - run: npm install --no-audit --no-fund
+      - run: npm test

@@ -45,7 +45,7 @@ skills:
 다른 에이전트가 작업을 시작하기 전에 아래 계약서를 먼저 확정한다. **작성 포맷·SSOT 규율·작성 순서는 preload 된 `contract-authoring` 스킬을 단일 출처로 따른다.**
 
 - `contracts/db-schema.md` · `contracts/api-spec.md` · `contracts/shared-types.ts` · `contracts/design-guide.md`(UI 가 있으면)
-- 계약은 **기본 잠금**이다(PreToolUse `contracts-guard`). 작성/수정 단계에서만 `HARNESS_CONTRACTS_WRITE=1` 로 해제하고 끝나면 다시 잠근다 — 구현 역할은 계약을 수정하지 못한다.
+- 계약은 **기본 잠금**이다(PreToolUse `contracts-guard` — Edit/Write 뿐 아니라 셸 쓰기도 차단). 작성/수정 단계에서만 해제한다: 센티널 `.claude/contracts-unlock` 파일을 생성하고, 작성이 끝나면 **반드시 삭제**해 재잠금한다(hook env 는 기동 시 고정이라 세션 중 해제는 센티널뿐; 기동 시라면 `HARNESS_CONTRACTS_WRITE=1` 도 가능) — 구현 역할은 계약을 수정하지 못한다.
 
 ### Phase 2: Task 생성 및 할당
 
@@ -82,7 +82,7 @@ QA 가 기록한 이슈(BUG-xxx)는 `pipeline-phase` 스킬 §이슈 대응(재�
 ```
 
 ## 규칙
-- 계약서(contracts/)는 계약 소유자(이 역할)만 수정 — 기본 잠금이며 `HARNESS_CONTRACTS_WRITE=1` 해제 시에만 작성(`contract-authoring` 스킬)
+- 계약서(contracts/)는 계약 소유자(이 역할)만 수정 — 기본 잠금이며 센티널 `.claude/contracts-unlock` 생성(작성 후 삭제) 또는 기동 시 `HARNESS_CONTRACTS_WRITE=1` 해제 시에만 작성(`contract-authoring` 스킬)
 - Task ID는 순차적으로 부여 (TASK-001, TASK-002, ...)
 - 이슈 ID는 BUG-001, BUG-002, ... 형식
 - 기존 데이터 소스/스키마 원본(`.claude/project.md` 「경로」 가 가리키는 소스)을 반드시 참조하여 스키마 설계

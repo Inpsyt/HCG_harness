@@ -240,8 +240,9 @@ qa-agent의 Phase 완료 게이트(`codex-review` 스킬)는 `pnpm codex:review 
 | Hook 단위 테스트 | `npm test` (또는 `node --test hcg-harness/hooks/*.test.mjs`) → 전부 통과 |
 | 에이전트 슬롯 해소 | 에이전트 spawn → `.claude/project.md`와 `<domain>` 스킬을 Read하는지 확인 |
 | Lint hook 발화 | app dir 아래 `*.ts` 편집 → PostToolUse가 ESLint 실행; 새 세션 → SessionStart가 phase/이슈 컨텍스트 주입 |
-| 계약 잠금 발화 | `HARNESS_CONTRACTS_WRITE=1` 없이 `contracts/*` 편집 시도 → PreToolUse가 거부(의도적 작성 시에만 env 설정). 주의: PreToolUse가 *서브에이전트* 호출에 발화하는지는 미문서화 — 환경에서 실측 |
-| 파괴 가드 발화 | Bash `rm -rf /` 또는 `prisma migrate reset`은 `HARNESS_DISABLE_DESTRUCTIVE_GUARD=1` 없이 거부됨. 주의: regex 가드(우회 가능 — `find -delete`, `psql -f`); 방어심층이지 벽이 아님 |
+| 계약 잠금 발화 | 잠금 해제(센티널 `.claude/contracts-unlock` 생성 또는 기동 시 `HARNESS_CONTRACTS_WRITE=1`) 없이 `contracts/*` 편집 **및** 셸 쓰기(`echo x > contracts/…`, PS `Set-Content`) 시도 → PreToolUse가 거부. 서브에이전트 발화는 미문서화 동작 — **2026-07-10 실측(Windows·플러그인 훅): 서브에이전트의 Write 도 동일하게 거부 확인**; 새 환경/버전에서는 재실측 |
+| 파괴 가드 발화 | Bash/PowerShell `rm -rf /`·`Remove-Item -Recurse -Force C:\`·`prisma migrate reset`은 `HARNESS_DISABLE_DESTRUCTIVE_GUARD=1` 없이 거부됨. 주의: regex 가드(우회 가능 — `find -delete`, `psql -f`); 방어심층이지 벽이 아님 |
+| CI 게이트 | init 렌더물 `.github/workflows/ci.yml` 푸시 → GitHub Actions에서 core(lint/tsc/test/build) + contract-drift(prisma validate/migrate diff) 잡 통과 확인. E2E 잡은 주석 해제로 opt-in |
 | 실제 강제 경계 | hook은 guardrail이지 보안 경계가 아니다. OS 레벨 강제는 Claude Code를 `/sandbox`(Seatbelt/bubblewrap)로 실행 — 없으면 Bash가 hook 거부를 우회. `portable-instance-boundary.md` 참조 |
 | Stop의 phase-gate | `tasks/phase-meta.yml`에 진행중·미게이트 phase가 있으면 세션 종료 시 경고(또는 `HARNESS_PHASE_GATE_BLOCK=1`이면 차단) |
 | Hook app dir | 소스 루트가 `apps/web`가 아니면 `POST_EDIT_VERIFY_APP_DIR` 설정(예: `.`, `web`, 또는 쉼표구분 목록); 아니면 lint hook이 조용히 no-op |
