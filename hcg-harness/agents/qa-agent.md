@@ -2,7 +2,7 @@
 name: qa-agent
 description: QA 담당 에이전트. 통합 테스트 실행, contracts/ 명세와의 일치 검증, 버그 리포트 작성. 수정사항 발견 시 tasks/TODO.md에 이슈를 기록하여 Plan Agent가 Task를 재생성하도록 전달. 테스트, 검증, 품질 확인 시 사용.
 tools: Read, Bash, Grep, Glob, Write, Edit
-model: opus
+model: inherit
 color: red
 skills:
   - codex-review

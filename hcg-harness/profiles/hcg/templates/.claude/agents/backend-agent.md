@@ -2,7 +2,7 @@
 name: backend-agent
 description: 백엔드 담당 에이전트. Next.js App Router API Routes(features actions 호출), Prisma 데이터 접근, Zod 입력 검증. 백엔드·API·서비스 로직 작업 시 사용.
 tools: Read, Edit, Write, Bash, Grep, Glob
-model: opus
+model: inherit
 color: green
 skills:
   - backend-conventions

@@ -34,7 +34,8 @@
 - E2E: **Playwright** (HCG 표준) — `playwright-e2e` 스킬을 작성해 front 셸의 `skills:` 에 추가한다.
 
 ## 모델 배정
-- plan=opus  qa=opus  db=sonnet  backend=opus  frontend=opus
+- 기본: 전 에이전트 `inherit`(세션 모델 상속) — 템플릿은 특정 모델명을 고정하지 않는다.
+- 비용 최적화가 필요하면 **이 인스턴스에서** 에이전트별 하위 티어를 고정한다(예: db 를 경량 모델로 — 해당 `.claude/agents/*.md` 의 `model:` 수정). 단 qa 는 구현자와 같은 티어 이상 유지(CLAUDE-core fast-path 규칙).
 
 ## 활성 에이전트
 - `<예: db, backend, frontend>` (해당 없는 레이어는 비활성)

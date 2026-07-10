@@ -2,7 +2,7 @@
 name: plan-agent
 description: 기획 담당 에이전트. 요구사항을 분석하고 Task를 생성하여 DB Agent, Backend Agent, Front Agent에 할당. QA Agent 피드백 수신 후 Task 재생성. 사용자가 기획, Task 생성, 요구사항 분석을 요청할 때 사용.
 tools: Read, Grep, Glob, Write, Edit
-model: opus
+model: inherit
 color: purple
 skills:
   - pipeline-phase

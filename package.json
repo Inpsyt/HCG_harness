@@ -1,6 +1,6 @@
 {
   "name": "hcg-harness-marketplace",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "type": "module",
   "description": "HCG portable development harness — Claude Code plugin marketplace. Repo-level tooling (hook + bootstrap-engine unit tests); the plugin itself lives in hcg-harness/.",

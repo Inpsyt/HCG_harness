@@ -2,7 +2,7 @@
 name: front-agent
 description: 프론트엔드 담당 에이전트. Next.js App Router + React + Tailwind, TanStack Query·Zustand·React Hook Form·Zod, feature-centric 컴포넌트. UI·컴포넌트 작업 시 사용.
 tools: Read, Edit, Write, Bash, Grep, Glob
-model: opus
+model: inherit
 color: orange
 skills:
   - frontend-conventions

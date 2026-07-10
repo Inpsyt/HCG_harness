@@ -2,7 +2,7 @@
 name: db-agent
 description: DB 담당 에이전트. Prisma 스키마 정의(MariaDB/MySQL provider), 마이그레이션, 데이터 접근 레이어. DB 스키마·마이그레이션 작업 시 사용.
 tools: Read, Edit, Write, Bash, Grep, Glob
-model: sonnet
+model: inherit
 color: blue
 skills:
   - db-conventions

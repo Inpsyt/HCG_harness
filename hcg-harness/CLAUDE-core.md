@@ -37,7 +37,7 @@ plan-agent 완료 후 오케스트레이터는 **구현 dispatch(②③④) 전�
 4. **되돌리기 어렵거나 폭발 반경이 큰가?** — auth / 데이터 삭제·마이그레이션 / 결제 / 외부 부작용 / 보안 경로?
 
 - fast-path여도 **직접 코드 수정은 여전히 금지** — 단일 담당 에이전트(②③④ 중 하나)로 라우팅하고 그 에이전트가 검증(tsc/lint/build/test)까지 수행한다.
-- **검수자(qa-agent)는 구현자와 동급(Opus) 유지** — 비용 절감은 qa 모델 강등이 아니라 이 fast-path(plan 세리머니 생략)로 한다.
+- **검수자(qa-agent)는 구현자와 같은 티어 이상 유지** — 특정 모델명에 고정하지 않는다(에이전트는 `model: inherit` = 세션 모델 상속이 기본, 하향 고정은 인스턴스 결정 — `.claude/project.md` 「모델 배정」). 비용 절감은 qa 모델 강등이 아니라 이 fast-path(plan 세리머니 생략)로 한다.
 
 **fast-path 내 codex 하위 결정** (게이트 통과와 별개 — opt-out 프로젝트(마커 choices.codex=false)는 codex 게이트가 없으므로 이 하위 결정 자체가 해당 없음):
 - 새 실행 로직(분기 / 정규식 / async / 상태 변화) 추가 → qa-agent + codex 게이트 **유지**(codex가 잡을 게 있음).
