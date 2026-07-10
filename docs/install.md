@@ -233,6 +233,8 @@ qa-agent의 Phase 완료 게이트(`codex-review` 스킬)는 `pnpm codex:review 
 > end-to-end 실행, 그다음 생성물에서 `pnpm install` / build / dev, 그리고 `/hcg-harness:upgrade`.
 > 아래 표는 포터블 번들 / 수동 설치 검증을 다룬다.
 
+> 아래 표의 **결정론 항목은 doctor 스크립트로 기계화**되어 있다 — `node <플러그인 루트>/scripts/doctor.mjs --target <프로젝트>` 한 번으로 marker·버전 skew·레이아웃·잠금 센티널·codex 배선·CI·툴체인·인스턴스 슬롯 8종을 진단한다(error 시 exit 1). 훅 발화 실측 등 라이브 항목은 여전히 수동이다.
+
 | 검사 | 방법 |
 |---|---|
 | 매니페스트 유효 | `claude plugin validate <pkg> --strict` → exit 0 (방식 A) |
