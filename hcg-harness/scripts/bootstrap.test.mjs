@@ -347,6 +347,31 @@ test("renderProfile provides PROJECT_SLUG token", () => {
   assert.equal(rendered[0].content, "my-app");
 });
 
+// ── userOwnedGlobs 토큰화 회귀: appDir 를 프로파일 기본값과 다르게 골라도
+//    앱 파일은 user-owned 여야 한다 (아니면 upgrade 가 사용자 앱 코드를 덮어씀) ──
+
+test("renderProfile substitutes tokens in userOwnedGlobs (custom appDir stays user-owned)", () => {
+  const fs = walkFs({ "{{APP_DIR}}/page.tsx": "// {{PROJECT_NAME}}", "CLAUDE.md": "managed" });
+  const rendered = renderProfile({
+    templatesDir: "/T", profile: { userOwnedGlobs: ["{{APP_DIR}}/**"] },
+    choices: { projectName: "Acme", appDir: "apps/admin" }, fs,
+  });
+  const page = rendered.find((f) => f.relPath === "apps/admin/page.tsx");
+  assert.ok(page, "app file rendered under the chosen appDir");
+  assert.equal(page.managed, false); // user-owned — upgrade must never overwrite
+  const claude = rendered.find((f) => f.relPath === "CLAUDE.md");
+  assert.equal(claude.managed, true); // non-glob files stay managed
+});
+
+test("renderProfile keeps literal (token-free) userOwnedGlobs working", () => {
+  const fs = walkFs({ "{{APP_DIR}}/page.tsx": "x" });
+  const rendered = renderProfile({
+    templatesDir: "/T", profile: { userOwnedGlobs: ["apps/web/**"] },
+    choices: { projectName: "Acme", appDir: "apps/web" }, fs,
+  });
+  assert.equal(rendered[0].managed, false);
+});
+
 // ── Defect 1 regression: upgrade reuses marker choices (not profile.id) ───────
 
 test("main upgrade preserves marker projectName for managed files", () => {

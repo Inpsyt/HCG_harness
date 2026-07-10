@@ -142,6 +142,10 @@ export function renderProfile({ templatesDir, profile, choices, fs = NODE_FS }) 
       : '- **codex 게이트**: 미사용 (init 에서 제외). qa 는 자체 검증(테스트·빌드·타입·린트)으로 Phase 를 닫는다. 코드 리뷰가 필요하면 내장 `review` 워크플로를 수동 실행. (사후 활성화: `docs/install.md` §2e.)',
   };
   const excluded = new Set(codex ? [] : (profile.codexFiles || []).map(toPosix));
+  // globs 도 경로와 같은 토큰을 치환 — "{{APP_DIR}}/**" 가 선택된 appDir 를 따라간다.
+  // 토큰 없는 리터럴 glob 은 그대로 통과(substituteTokens 는 미정의 토큰 보존).
+  const userOwnedGlobs = (Array.isArray(profile.userOwnedGlobs) ? profile.userOwnedGlobs : [])
+    .map((g) => toPosix(substituteTokens(g, tokens)));
   const files = walkRel(templatesDir, "", fs);
   return files
     .map(({ relPath, content }) => {
@@ -149,7 +153,7 @@ export function renderProfile({ templatesDir, profile, choices, fs = NODE_FS }) 
       return {
         relPath: outPath,
         content: substituteTokens(content, tokens),
-        managed: !isUserOwned(outPath, profile.userOwnedGlobs),
+        managed: !isUserOwned(outPath, userOwnedGlobs),
       };
     })
     .filter((f) => !excluded.has(f.relPath));
