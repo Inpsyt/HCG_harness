@@ -16,10 +16,16 @@
 ## 0. 요구사항
 
 - **Claude Code CLI** — 플러그인 설치 + `/hcg-harness:init` 호출용.
-- **Node.js 20+** (LTS · 검증 22) PATH 등록 — hook과 부트스트랩 엔진이 `.mjs`.
-- **npm 10+** (Node 20+ 에 동봉 — 별도 설치 불요) — HCG 프로파일의 패키지 매니저; 생성되는
-  `setupCommands`가 npm/npx 사용. 잠금파일은 `package-lock.json`(커밋 대상 — CI `npm ci` 가
-  요구). 생성되는 `.npmrc`(`engine-strict=true`)가 `package.json` engines 가드를 강제한다.
+- **Node.js 22+** (LTS · 배포 서버 표준 22.13.0) PATH 등록 — hook과 부트스트랩 엔진이 `.mjs`.
+- **npm 10+** (Node 22 에 동봉 — 별도 설치 불요 · 배포 서버 표준 10.9.2) — HCG 프로파일의
+  패키지 매니저; 생성되는 `setupCommands`가 npm/npx 사용. 잠금파일은 `package-lock.json`(커밋
+  대상 — CI `npm ci` 가 요구). 생성 앱은 `.npmrc`(`engine-strict=true`)가 engines
+  가드(node>=22/npm>=10)를, `"packageManager": "npm@10.9.2"` 필드(pnpm 조기 거부 + corepack
+  버전 고정)와 preinstall 가드(`npx only-allow npm`)가 npm 전용(타 PM 설치 차단)을 기계
+  강제한다.
+- **배포 서버 표준 스펙 (HCG 규정)**: node 22.13.0 · npm 10.9.2 · pm2 7.0.3 — 배포
+  파이프라인은 소스에서 `npm ci` 로 설치하며, 프로세스 매니저는 pm2(서버 측 전용 — 로컬
+  개발·부트스트랩엔 불요).
 - **git** — codex 게이트(base_sha diff)와 worktree 격리 워크플로(`migrate`/`test-gen`)용.
 - 하네스 소스 — 이 레포(`hcg_harness/`), 또는 `.claude-plugin/marketplace.json`을
   호스팅하는 git 레포.

@@ -2,7 +2,7 @@
   "id": "hcg",
   "label": "HCG 표준 (Next.js + Tailwind + MariaDB/Prisma + TanStack + Vitest/Playwright)",
   "description": "HCG 표준 풀스택 스택. Next.js App Router · Tailwind · MariaDB+Prisma · TanStack Query · Vitest · Playwright · npm.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "packageManager": "npm",
   "appDir": "apps/web",
   "userOwnedGlobs": [

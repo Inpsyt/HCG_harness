@@ -2,11 +2,13 @@
   "name": "{{PROJECT_SLUG}}",
   "private": true,
   "type": "module",
+  "packageManager": "npm@10.9.2",
   "engines": {
-    "node": ">=20",
+    "node": ">=22",
     "npm": ">=10"
   },
   "scripts": {
+    "preinstall": "npx --yes only-allow npm",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

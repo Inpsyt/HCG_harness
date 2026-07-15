@@ -46,7 +46,7 @@ hcg_harness/                         # 레포 = 단일 플러그인 마켓플레
 
 새 프로젝트를 시작하는 권장 방식이다.
 
-**요구사항(최소)**: Node.js 20+ (LTS · 검증 22 — npm 10+ 동봉, 별도 설치 불요) · git · Claude Code CLI. HCG 프로파일의 패키지 매니저는 **npm**(배포 파이프라인 표준) — 잠금파일은 `package-lock.json`(커밋 대상, CI `npm ci` 가 요구). DB(MariaDB/MySQL)는 앱을 실제 DB에 연결·마이그레이션할 때만 필요(부트스트랩·빌드엔 불요).
+**요구사항(최소)**: Node.js 22+ (npm 10+ 동봉, 별도 설치 불요) · git · Claude Code CLI. **배포 서버 표준 스펙(HCG 규정): node 22.13.0 · npm 10.9.2 · pm2 7.0.3** — HCG 프로파일의 패키지 매니저는 npm(파이프라인이 소스에서 `npm ci` 설치), 잠금파일은 `package-lock.json`(커밋 대상). 생성 앱은 engines(node>=22/npm>=10) + `.npmrc`(engine-strict) + preinstall 가드(`only-allow npm` — pnpm/yarn 설치 차단)로 표준을 기계 강제한다. DB(MariaDB/MySQL)는 앱을 실제 DB에 연결·마이그레이션할 때만 필요(부트스트랩·빌드엔 불요).
 
 **설치 → 부트스트랩 → 환경세팅 순서** (빈 폴더 기준):
 
@@ -153,6 +153,14 @@ claude plugin install hcg-harness@hcg-harness-marketplace
 ---
 
 ## 변경 이력
+
+### 0.1.5 — 2026-07-15
+
+기존 프로젝트는 `apps/web/package.json` 이 user-owned 이므로 preinstall 가드·engines 를 수동 반영한다.
+
+- **배포 서버 표준 스펙 명시 (HCG 규정)**: node 22.13.0 · npm 10.9.2 · pm2 7.0.3 — README·install.md §0 요구사항에 명문화. 생성 앱 engines 를 배포 타깃에 맞춰 `node>=22`(npm>=10 유지)로 상향.
+- **npm 전용 이중 가드**: 생성 `package.json` 에 ① `"packageManager": "npm@10.9.2"`(배포 서버 npm 버전 고정 — pnpm 10 이 설치 시도 시 **아무것도 만들기 전에** 즉시 거부, 실측 검증) + ② preinstall `npx only-allow npm`(packageManager 필드를 무시하는 yarn 1.x 등 차단, 심층 방어 — 단 pnpm 은 preinstall 을 설치 후 실행하므로 ①이 1차 가드). 습관적 `pnpm install` 이 조용히 성공해 잠금·node_modules 를 오염시키는 함정 제거. `.npmrc` engine-strict 와 함께 npm 표준을 기계 강제.
+- **버전 표기 동기화**: 0.1.5 (프로파일 0.1.3).
 
 ### 0.1.4 — 2026-07-15
 
