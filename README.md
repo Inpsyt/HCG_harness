@@ -46,7 +46,7 @@ hcg_harness/                         # 레포 = 단일 플러그인 마켓플레
 
 새 프로젝트를 시작하는 권장 방식이다.
 
-**요구사항(최소)**: Node.js 20+ (LTS · 검증 22) · pnpm 9+ (HCG 프로파일의 패키지 매니저 · 검증 10) · git · Claude Code CLI. DB(MariaDB/MySQL)는 앱을 실제 DB에 연결·마이그레이션할 때만 필요(부트스트랩·빌드엔 불요). pnpm 10+는 postinstall을 기본 차단하므로 `pnpm prisma generate` 전에 `pnpm approve-builds`가 필요할 수 있음.
+**요구사항(최소)**: Node.js 20+ (LTS · 검증 22 — npm 10+ 동봉, 별도 설치 불요) · git · Claude Code CLI. HCG 프로파일의 패키지 매니저는 **npm**(배포 파이프라인 표준) — 잠금파일은 `package-lock.json`(커밋 대상, CI `npm ci` 가 요구). DB(MariaDB/MySQL)는 앱을 실제 DB에 연결·마이그레이션할 때만 필요(부트스트랩·빌드엔 불요).
 
 **설치 → 부트스트랩 → 환경세팅 순서** (빈 폴더 기준):
 
@@ -68,10 +68,10 @@ claude plugin list                                        # 확인: hcg-harness 
 **④ 터미널 — 안내된 setup 명령 실행 (생성된 앱 디렉터리에서)**
 ```bash
 cd apps/web
-pnpm install
-pnpm prisma generate          # pnpm 10은 먼저: pnpm approve-builds
-pnpm dlx playwright install
-pnpm dev                      # http://localhost:3000
+npm install                   # package-lock.json 생성 — 커밋 대상(CI npm ci 가 요구)
+npx prisma generate
+npx playwright install
+npm run dev                   # http://localhost:3000
 ```
 
 **재적용**(템플릿 갱신)은 세션에서 `/hcg-harness:upgrade`. (마켓플레이스가 git 소스면 먼저 `claude plugin marketplace update hcg-harness-marketplace`로 최신 커밋 반영.)
@@ -153,6 +153,14 @@ claude plugin install hcg-harness@hcg-harness-marketplace
 ---
 
 ## 변경 이력
+
+### 0.1.4 — 2026-07-15
+
+기존 설치 프로젝트는 플러그인 업데이트(①·②) 후 ③ `/hcg-harness:upgrade` 권장 — managed 파일(CI·에이전트·스킬)의 npm 전환이 전파된다. **user-owned 파일은 수동 이관 필요**: `apps/web/package.json` engines(`npm>=10`), `.npmrc`(`engine-strict=true`) 추가, `pnpm-lock.yaml` 삭제 후 `npm install`로 `package-lock.json` 생성·커밋.
+
+- **패키지 매니저 npm 전환 (pnpm → npm)**: 배포 파이프라인 규정(npm · 소스에서 설치)에 맞춰 HCG 프로파일 전환. `profile.json`(packageManager·setupCommands `npm install`/`npx …`) · CI 템플릿(`npm ci` + `package-lock.json` 캐시, pnpm/action-setup 제거) · codex 게이트 호출 규약(`npm run codex:review -- <base_sha>` — npm 은 인자 전달에 `--` 필요) · doctor 잠금 센티널(`package-lock.json`) · playwright webServer(`npm run dev`) 일괄 갱신.
+- **engines 가드 강제 유지**: npm 은 engines 를 경고만 하므로 생성 앱에 `.npmrc`(`engine-strict=true`)를 동봉해 pnpm 시절의 버전 가드 강제성을 보존. engines 는 `node>=20` / `npm>=10`.
+- **버전 표기 동기화**: 0.1.4 (프로파일 0.1.2).
 
 ### 0.1.3 — 2026-07-10
 

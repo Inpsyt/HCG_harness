@@ -116,8 +116,8 @@ function checkToolchain(target, marker, fs) {
   if (!fs.existsSync(join(target, `${appDir}/package.json`)))
     return f("toolchain", "error", `${appDir}/package.json 없음 — 앱 골격 부재(부트스트랩 불완전 또는 appDir 불일치)`, "marker choices.appDir 확인 또는 `/hcg-harness:init --gap-fill`");
   const missing = [];
-  if (!fs.existsSync(join(target, `${appDir}/node_modules`))) missing.push("node_modules(pnpm install 미실행)");
-  if (!fs.existsSync(join(target, `${appDir}/pnpm-lock.yaml`))) missing.push("pnpm-lock.yaml(커밋 대상 — CI 가 요구)");
+  if (!fs.existsSync(join(target, `${appDir}/node_modules`))) missing.push("node_modules(npm install 미실행)");
+  if (!fs.existsSync(join(target, `${appDir}/package-lock.json`))) missing.push("package-lock.json(커밋 대상 — CI npm ci 가 요구)");
   if (!fs.existsSync(join(target, `${appDir}/prisma/schema.prisma`))) missing.push("prisma/schema.prisma");
   let hasDbUrl = false;
   for (const env of [".env", ".env.local"]) {

@@ -44,24 +44,24 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
-      - run: corepack enable && pnpm install --frozen-lockfile
+      - run: npm ci
 
       # shared-types SSOT: implementation must compile against the typed contract
-      - run: pnpm tsc --noEmit
+      - run: npx tsc --noEmit
 
       # db-schema ↔ Prisma: schema valid + migrations in sync (no drift)
-      - run: pnpm prisma validate
-      - run: pnpm prisma migrate diff \
+      - run: npx prisma validate
+      - run: npx prisma migrate diff \
           --from-migrations prisma/migrations \
           --to-schema-datamodel prisma/schema.prisma \
           --exit-code   # non-zero ⇒ schema and migrations drifted → fail the build
 
       # api-spec ↔ routes: lint the OpenAPI doc + run contract tests
-      # - run: pnpm redocly lint contracts/openapi.yaml
-      # - run: pnpm test:contract
+      # - run: npx redocly lint contracts/openapi.yaml
+      # - run: npm run test:contract
 
       # design-guide: forbid hardcoded colors (stylelint custom rule)
-      # - run: pnpm stylelint "apps/web/**/*.{css,tsx}"
+      # - run: npx stylelint "apps/web/**/*.{css,tsx}"
 ```
 
 > Lines are commented where the form is your choice (OpenAPI vs Zod-derived, your

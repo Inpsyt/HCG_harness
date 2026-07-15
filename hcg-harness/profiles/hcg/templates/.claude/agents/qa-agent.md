@@ -57,7 +57,7 @@ skills:
 
 ### 5. Phase 누적 변경 Codex Adversarial Review (Phase 완료 검증 시만)
 
-Phase **전체 완료 검증**일 때만, preload 된 `codex-review` 스킬의 게이트 절차를 **단일 출처**로 따른다 — base_sha 추출 → `pnpm codex:review <base_sha>` 실행/로그 저장 → **KIND 선행 분류** 후 severity 매핑 → 게이트 PASS/FAIL 판정 → `tasks/phase-meta.yml` `codex_review` 블록 기록. 개별 Task QA·부분 재검증에서는 스킵한다. (절차 전문을 본문에 복제하지 않는다 — 스킬이 정본이다.)
+Phase **전체 완료 검증**일 때만, preload 된 `codex-review` 스킬의 게이트 절차를 **단일 출처**로 따른다 — base_sha 추출 → `npm run codex:review -- <base_sha>` 실행/로그 저장 → **KIND 선행 분류** 후 severity 매핑 → 게이트 PASS/FAIL 판정 → `tasks/phase-meta.yml` `codex_review` 블록 기록. 개별 Task QA·부분 재검증에서는 스킵한다. (절차 전문을 본문에 복제하지 않는다 — 스킬이 정본이다.)
 
 - **opt-out**: 마커(`.claude/.hcg-harness.json`)의 `choices.codex === false` 인 프로젝트는 codex
   게이트를 스킵하고 자체 검증(rung 1-2)으로 Phase 를 닫는다 — 절차는 `codex-review` 스킬 §적용 조건.
@@ -66,7 +66,7 @@ qa-agent 가 반드시 들고 가야 할 핵심만 재명시한다:
 
 - **KIND 가 severity 보다 먼저다 (스킬 §게이트 범위 D9).** gap/enhancement/over-design 은 codex 가 Critical/High 로 매겨도 **부록(비차단)**, **정확성·안전 결함** 또는 **명시 요구사항·계약 위반**만 Phase FAIL 시킨다.
 - **FAIL 시**: 해당 Phase 파일(`tasks/phases/phase-<N>-*.md`)의 "QA 이슈" 섹션에 BUG-xxx 등록 + `tasks/phase-meta.yml` `status: in-progress` 유지(`completed` 금지) + 사용자에게 명확한 alert → plan-agent 재호출.
-- **인프라 의존**: 이 게이트는 소비 프로젝트가 배선한 codex 래퍼(`pnpm codex:review` → `scripts/codex-review.mjs`)와 codex-companion 인증에 의존한다(설치: `docs/install.md`). 미설치/인증만료 시 게이트 실행 불가 → Phase 완료 차단(스킬 §실패 모드 참조). (opt-out 프로젝트 — 마커 choices.codex=false — 는 해당 없음: 게이트 스킵.)
+- **인프라 의존**: 이 게이트는 소비 프로젝트가 배선한 codex 래퍼(`npm run codex:review` → `scripts/codex-review.mjs`)와 codex-companion 인증에 의존한다(설치: `docs/install.md`). 미설치/인증만료 시 게이트 실행 불가 → Phase 완료 차단(스킬 §실패 모드 참조). (opt-out 프로젝트 — 마커 choices.codex=false — 는 해당 없음: 게이트 스킵.)
 
 ## 이슈 보고 방법
 

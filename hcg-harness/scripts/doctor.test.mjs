@@ -62,7 +62,7 @@ function healthyFiles() {
     ".github/workflows/ci.yml": "x",
     "apps/web/package.json": JSON.stringify({ scripts: { "codex:review": "node ../../scripts/codex-review.mjs" } }),
     "apps/web/node_modules/.keep": "x",
-    "apps/web/pnpm-lock.yaml": "x",
+    "apps/web/package-lock.json": "x",
     "apps/web/prisma/schema.prisma": "x",
     "apps/web/.env": "DATABASE_URL=mysql://...\n",
   };
@@ -183,7 +183,7 @@ test("toolchain: package.json 없음 → error / node_modules·.env 없음 → w
 
 test("project.md 한글 플레이스홀더 잔존 → warn (값은 미출력)", () => {
   const files = healthyFiles();
-  files[".claude/project.md"] = "- 정체성: <프로젝트 한 줄 설명>\n- 명령: <예: pnpm dev>";
+  files[".claude/project.md"] = "- 정체성: <프로젝트 한 줄 설명>\n- 명령: <예: npm run dev>";
   const r = run(files);
   const f = byId(r, "placeholders");
   assert.equal(f[0].level, "warn");

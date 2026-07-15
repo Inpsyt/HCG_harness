@@ -25,7 +25,7 @@ per-project.
 | Test/E2E skill | `.claude/skills/<e2e>/SKILL.md` | Optional skill; HCG default = Playwright E2E. Added to the front shell. |
 | `CLAUDE.md` PROJECT section | `CLAUDE.md` | Project overview + `@.claude/CLAUDE-core.md` import. Template: `templates/CLAUDE.md`. |
 | Contracts | `contracts/*` | The blackboard SSOT (db-schema/api-spec/shared-types/design-guide). |
-| Codex gate wrapper | `scripts/codex-review.mjs` + `package.json` `codex:review` | The qa codex gate calls `pnpm codex:review <base_sha>`; copy `templates/codex-review.mjs` and wire it to codex-companion (install.md §2e). Not bundled — depends on the external codex plugin. |
+| Codex gate wrapper | `scripts/codex-review.mjs` + `package.json` `codex:review` | The qa codex gate calls `npm run codex:review -- <base_sha>`; copy `templates/codex-review.mjs` and wire it to codex-companion (install.md §2e). Not bundled — depends on the external codex plugin. |
 | CI contract-drift gate | CI config (e.g. `.github/workflows/contracts.yml`) | Deterministic contract↔code drift checks (`tsc` · `prisma validate`/`migrate diff` · OpenAPI lint · token lint). Template: `templates/ci-contract-drift.md`. Semantic drift → the `converge` workflow. |
 | App + DB | `apps/web`, `prisma/`, … | The actual product code. |
 

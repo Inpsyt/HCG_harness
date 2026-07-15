@@ -1,11 +1,11 @@
 ---
 name: codex-review
-description: Phase 완료 검증 시 누적 변경을 외부 모델(codex)로 적대적 리뷰하는 게이트 절차 — base_sha 추출, pnpm codex:review 실행, D9 KIND 선행 분류, severity 매핑, codex_review 블록 기록, 실패 모드. QA/게이트 역할이 Phase 종료 게이트를 수행할 때 로드.
+description: Phase 완료 검증 시 누적 변경을 외부 모델(codex)로 적대적 리뷰하는 게이트 절차 — base_sha 추출, npm run codex:review 실행, D9 KIND 선행 분류, severity 매핑, codex_review 블록 기록, 실패 모드. QA/게이트 역할이 Phase 종료 게이트를 수행할 때 로드.
 ---
 
 # Codex Review — Phase 누적 변경 Codex Adversarial Review 게이트
 
-Phase 전체 완료를 검증할 때, Claude(qa) 시각만으로는 잡기 어려운 blind spot을 외부 모델(codex) 적대적 리뷰로 보완하는 절차. 하네스 규약(`scripts/codex-review.mjs`, `tasks/phase-meta.yml`, `tasks/codex-reviews/`, `pnpm codex:review`) 위에서 동작한다.
+Phase 전체 완료를 검증할 때, Claude(qa) 시각만으로는 잡기 어려운 blind spot을 외부 모델(codex) 적대적 리뷰로 보완하는 절차. 하네스 규약(`scripts/codex-review.mjs`, `tasks/phase-meta.yml`, `tasks/codex-reviews/`, `npm run codex:review`) 위에서 동작한다.
 
 ## 적용 조건
 
@@ -47,11 +47,11 @@ Phase 전체 완료를 검증할 때, Claude(qa) 시각만으로는 잡기 어�
 2. Codex review 실행 + 로그 저장 (foreground 5~10분 대기 예상):
 
    ```bash
-   pnpm codex:review <base_sha> 2>&1 | tee "tasks/codex-reviews/phase-<N>-$(date +%Y%m%d).log"
+   npm run codex:review -- <base_sha> 2>&1 | tee "tasks/codex-reviews/phase-<N>-$(date +%Y%m%d).log"
    ```
 
    - 첫 실행 전 codex-companion `setup --json`으로 인증 상태 확인 권장.
-   - **D9 자동 적용**: `pnpm codex:review` → `scripts/codex-review.mjs`가 게이트 범위 지시(`D9_FOCUS`)를 codex adversarial-review의 focus text(`{{USER_FOCUS}}`)로 항상 전달한다(별도 인자 불필요). 이로써 codex가 정확성·요구사항 위반에 가중치를 두고 gap/enhancement는 비차단으로 표기하도록 유도된다. 단 codex의 base 템플릿은 plugin 측 고정이라 갭 보고를 완전히 막지는 못하므로, **최종 게이트 판정(PASS/FAIL)은 위 §게이트 범위(D9) KIND 분류로 qa가 내린다.**
+   - **D9 자동 적용**: `npm run codex:review` → `scripts/codex-review.mjs`가 게이트 범위 지시(`D9_FOCUS`)를 codex adversarial-review의 focus text(`{{USER_FOCUS}}`)로 항상 전달한다(별도 인자 불필요). 이로써 codex가 정확성·요구사항 위반에 가중치를 두고 gap/enhancement는 비차단으로 표기하도록 유도된다. 단 codex의 base 템플릿은 plugin 측 고정이라 갭 보고를 완전히 막지는 못하므로, **최종 게이트 판정(PASS/FAIL)은 위 §게이트 범위(D9) KIND 분류로 qa가 내린다.**
 
 3. 출력에서 finding을 **먼저 KIND(정확성·요구사항 위반 vs gap/enhancement/over-design)로 분류**한 뒤 severity를 본다 (위 §게이트 범위(D9) + 아래 §Severity 매핑 표 참조).
 
@@ -98,7 +98,7 @@ Phase 전체 완료를 검증할 때, Claude(qa) 시각만으로는 잡기 어�
 
 ```markdown
 ### Codex Adversarial Review 결과
-- 실행: `pnpm codex:review <sha>` (Phase <N> 시작 시점, D9 focus 자동 적용)
+- 실행: `npm run codex:review -- <sha>` (Phase <N> 시작 시점, D9 focus 자동 적용)
 - 누적 diff: M files, +X -Y lines
 - 게이트 대상 Critical/High (정확성·요구사항 위반): N건 (BUG-XXX, ...)
 - 비차단 부록 (gap/enhancement/over-design — severity 무관): G건
@@ -117,7 +117,7 @@ Phase 전체 완료를 검증할 때, Claude(qa) 시각만으로는 잡기 어�
 
 ## 실패 모드
 
-- Codex 인증 만료 (`pnpm codex:review` exit 1): 사용자에게 codex `setup --json` 실행 요청.
+- Codex 인증 만료 (`npm run codex:review` exit 1): 사용자에게 codex `setup --json` 실행 요청.
 - codex-companion 미설치 (exit 1, "not found"): 사용자에게 codex 플러그인 설치 요청.
 - Codex 응답 시간 15분 초과: 메인 스레드의 하네스 `run_in_background`로 실행(권장·현행 — codex 게이트는 이 방식으로 백그라운딩한다) 또는 재시도·원인 조사. (codex review 자체에는 백그라운딩 플래그가 없다 — companion review 핸들러가 foreground 고정이라 `--wait`로만 동작.)
 

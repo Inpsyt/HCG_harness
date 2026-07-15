@@ -17,14 +17,14 @@
 
 - **Claude Code CLI** — 플러그인 설치 + `/hcg-harness:init` 호출용.
 - **Node.js 20+** (LTS · 검증 22) PATH 등록 — hook과 부트스트랩 엔진이 `.mjs`.
-- **pnpm 9+** (검증 10) — HCG 프로파일의 패키지 매니저; 생성되는 `setupCommands`가 pnpm 사용.
-  (pnpm 10+는 postinstall 빌드 스크립트를 기본 차단 — `pnpm prisma generate` 전에
-  `pnpm approve-builds` 실행.)
+- **npm 10+** (Node 20+ 에 동봉 — 별도 설치 불요) — HCG 프로파일의 패키지 매니저; 생성되는
+  `setupCommands`가 npm/npx 사용. 잠금파일은 `package-lock.json`(커밋 대상 — CI `npm ci` 가
+  요구). 생성되는 `.npmrc`(`engine-strict=true`)가 `package.json` engines 가드를 강제한다.
 - **git** — codex 게이트(base_sha diff)와 worktree 격리 워크플로(`migrate`/`test-gen`)용.
 - 하네스 소스 — 이 레포(`hcg_harness/`), 또는 `.claude-plugin/marketplace.json`을
   호스팅하는 git 레포.
 - **MariaDB/MySQL** — 앱을 실제 DB에 연결(Prisma migrate/connect)할 때만 필요;
-  부트스트랩·`pnpm build`엔 불요.
+  부트스트랩·`npm run build`엔 불요.
 
 ---
 
@@ -76,7 +76,7 @@ generic 골격이므로 프로젝트 고유값은 `args` + `.claude/project.md`�
 
 플러그인 설치 후 새 세션을 열면 SessionStart 가 미부트스트랩을 감지해 `/hcg-harness:init` 실행을
 안내한다. `/hcg-harness:init` 는 프레임워크(HCG 기본)·프로젝트명을 묻고, 하네스 레이어 + 최소 앱
-골격을 생성한 뒤 setup 명령(`pnpm install` 등)을 안내한다(실행은 사용자 몫). 재동기화는
+골격을 생성한 뒤 setup 명령(`npm install` 등)을 안내한다(실행은 사용자 몫). 재동기화는
 `/hcg-harness:upgrade`. 아래 §2 "수동 슬롯 채우기"는 부트스트랩을 쓰지 않거나 기존 프로젝트에
 얹을 때의 절차다.
 
@@ -197,7 +197,7 @@ HCG-스택 힌트만 유지). 설치는 **generic → instance**: placeholder를
 
 ### 2e. Codex 게이트 래퍼 (`scripts/codex-review.mjs`)
 
-qa-agent의 Phase 완료 게이트(`codex-review` 스킬)는 `pnpm codex:review <base_sha>`를
+qa-agent의 Phase 완료 게이트(`codex-review` 스킬)는 `npm run codex:review -- <base_sha>`를
 실행한다 — 이 래퍼는 플러그인이 **동봉하지 않는다**(별도 **codex-companion** 플러그인과
 프로젝트의 git/CLI에 의존). 프로젝트마다 한 번 배선한다:
 
@@ -230,7 +230,7 @@ qa-agent의 Phase 완료 게이트(`codex-review` 스킬)는 `pnpm codex:review 
 
 > **`/hcg-harness:init` 자동 부트스트랩 경로**는 자체 rung-4 수용을 가진다 — 환경 의존이라
 > 첫 실설치 때 수동 실행: 커맨드 발견 + `${CLAUDE_PLUGIN_ROOT}` 토큰 치환 확인, `/hcg-harness:init`
-> end-to-end 실행, 그다음 생성물에서 `pnpm install` / build / dev, 그리고 `/hcg-harness:upgrade`.
+> end-to-end 실행, 그다음 생성물에서 `npm install` / build / dev, 그리고 `/hcg-harness:upgrade`.
 > 아래 표는 포터블 번들 / 수동 설치 검증을 다룬다.
 
 > 아래 표의 **결정론 항목은 doctor 스크립트로 기계화**되어 있다 — `node <플러그인 루트>/scripts/doctor.mjs --target <프로젝트>` 한 번으로 marker·버전 skew·레이아웃·잠금 센티널·codex 배선·CI·툴체인·인스턴스 슬롯 8종을 진단한다(error 시 exit 1). 훅 발화 실측 등 라이브 항목은 여전히 수동이다.

@@ -7,7 +7,7 @@
 
 - **정체성·스택·경로·계약·도메인 스킬**: `.claude/project.md` 를 단일 출처로 한다 (인스턴스 슬롯). 여기 값을 복제하지 말고 그 파일을 가리킨다.
 - **도메인 규칙**(정렬·코드·검색 우선순위 등): `.claude/skills/<domain>/SKILL.md`.
-- **주요 명령**(빌드/테스트/lint): `<예: pnpm dev / pnpm build / pnpm test / pnpm lint>`
+- **주요 명령**(빌드/테스트/lint): `<예: npm run dev / npm run build / npm test / npm run lint>`
 - **codex 게이트 래퍼**(qa Phase 완료 검증용): `scripts/codex-review.mjs` + `package.json` 의 `"codex:review"` 스크립트. 설치·배선은 `docs/install.md` 참조. (codex-companion 플러그인 의존.)
 
 ## 공통 방법론 (HARNESS)

@@ -2,7 +2,7 @@
 // templates/codex-review.mjs  →  copy to <project>/scripts/codex-review.mjs
 //
 // Reference wrapper for the qa-agent / codex-review gate. The harness skill
-// `codex-review` invokes `pnpm codex:review <base_sha>`, which must resolve to
+// `codex-review` invokes `npm run codex:review -- <base_sha>`, which must resolve to
 // this script. It is NOT bundled into the plugin (it depends on the separate
 // codex-companion plugin and on your project's git/CLI), so each consuming
 // project copies and wires it. See docs/install.md.

@@ -21,21 +21,18 @@ jobs:
         working-directory: {{APP_DIR}}
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-        with:
-          version: 9
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: pnpm
-          cache-dependency-path: "{{APP_DIR}}/pnpm-lock.yaml"
-      # 잠금파일은 커밋 대상 — 없으면 여기서 실패한다(재현 불가 빌드 방지)
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm prisma generate
-      - run: pnpm lint
-      - run: pnpm exec tsc --noEmit
-      - run: pnpm test
-      - run: pnpm build
+          cache: npm
+          cache-dependency-path: "{{APP_DIR}}/package-lock.json"
+      # 잠금파일은 커밋 대상 — 없으면 npm ci 가 여기서 실패한다(재현 불가 빌드 방지)
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm test
+      - run: npm run build
 
   # contracts/db-schema ↔ Prisma 결정론적 드리프트 게이트.
   # 스키마·마이그레이션 불일치면 비-0 종료 → 빌드 실패 (templates/ci-contract-drift.md)
@@ -46,19 +43,16 @@ jobs:
         working-directory: {{APP_DIR}}
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-        with:
-          version: 9
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: pnpm
-          cache-dependency-path: "{{APP_DIR}}/pnpm-lock.yaml"
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm prisma validate
+          cache: npm
+          cache-dependency-path: "{{APP_DIR}}/package-lock.json"
+      - run: npm ci
+      - run: npx prisma validate
       - run: mkdir -p prisma/migrations
       - run: >
-          pnpm prisma migrate diff
+          npx prisma migrate diff
           --from-migrations prisma/migrations
           --to-schema-datamodel prisma/schema.prisma
           --exit-code
@@ -86,12 +80,10 @@ jobs:
   #     DATABASE_URL: "mysql://ci:ci@127.0.0.1:3306/ci"
   #   steps:
   #     - uses: actions/checkout@v7
-  #     - uses: pnpm/action-setup@v6
-  #       with: { version: 9 }
   #     - uses: actions/setup-node@v6
-  #       with: { node-version: 22, cache: pnpm, cache-dependency-path: "{{APP_DIR}}/pnpm-lock.yaml" }
-  #     - run: pnpm install --frozen-lockfile
-  #     - run: pnpm prisma generate
-  #     - run: pnpm prisma migrate deploy
-  #     - run: pnpm dlx playwright install --with-deps chromium
-  #     - run: pnpm test:e2e
+  #       with: { node-version: 22, cache: npm, cache-dependency-path: "{{APP_DIR}}/package-lock.json" }
+  #     - run: npm ci
+  #     - run: npx prisma generate
+  #     - run: npx prisma migrate deploy
+  #     - run: npx playwright install --with-deps chromium
+  #     - run: npm run test:e2e

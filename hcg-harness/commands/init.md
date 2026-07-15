@@ -9,7 +9,7 @@ description: 빈 프로젝트에 HCG 하네스 + 앱 골격을 선택형으로 �
 
 ## 절차
 
-1. **사전 안내**: 부트스트랩은 파일을 생성하지만 setup 명령(`pnpm install` 등)은 실행하지
+1. **사전 안내**: 부트스트랩은 파일을 생성하지만 setup 명령(`npm install` 등)은 실행하지
    않는다고 사용자에게 알린다.
 2. **프로파일 목록**: 다음을 실행해 사용 가능한 프로파일을 읽는다.
    `node "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.mjs" --mode init --profile __list__`은 사용하지 말고,

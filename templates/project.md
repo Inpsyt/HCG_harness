@@ -15,7 +15,7 @@
 - 테스트: 단위/통합 Vitest · E2E Playwright
 - DB: MariaDB · ORM: Prisma(`provider="mysql"`)
 - 복잡 로직 모듈(필요 시): Fastify(우선) / Express — `services/`
-- 패키지 매니저: <pnpm / npm / yarn>
+- 패키지 매니저: <npm / pnpm / yarn>
 
 ## 경로
 - db: `prisma/`(schema.prisma · migrations) + 기능별 `features/*/actions.ts`
