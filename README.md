@@ -154,6 +154,10 @@ claude plugin install hcg-harness@hcg-harness-marketplace
 
 ## 변경 이력
 
+### 0.2.1 — 2026-07-24
+
+- **마커 harnessVersion 하드코딩 제거**: `bootstrap.mjs` CLI 가 마커에 찍는 `harnessVersion` 을 하드코딩 fallback 대신 **플러그인 자신의 `.claude-plugin/plugin.json` 에서 읽어** 기록한다(`readOwnPluginVersion`). 0.2.0 설치 테스트에서 발견 — 신규 init 마커가 구버전(0.1.5)으로 찍혀 doctor 가 version-skew 오경보를 냈고 upgrade 로도 해소되지 않았다. 이제 upgrade 도 plugin.json 버전으로 재도장해 skew 가 자가 해소되며, 릴리스마다 리터럴을 수동 범프할 필요가 없다(리터럴은 미가독 시 최후 방어로만 유지). 회귀 테스트 2건 추가(128 → 130).
+
 ### 0.2.0 — 2026-07-23
 
 - **Task 기반 동적 모델 배정**: plan-agent 가 Task 생성 시 MoSCoW × 난이도로 티어(T0/T1/T2)를 도출해 Task 라인에 기록하고, 오케스트레이터가 spawn 시 `Agent` tool `model` 파라미터로 오버라이드한다(CLAUDE-core §모델 배정 매트릭스 신설). plan = T0 고정, qa = Phase 구현자 max +1 단계(상한 T0), fast-path 는 should 간주 + `fast_path_log.tier` 기록. 구체 모델 alias 는 project.md 「모델 배정」 해소표에만 존재(기본 T1=opus · T2=sonnet) — 모델명 하드코딩 없음(0.1.3 취지 유지). 에이전트 frontmatter 는 `model: inherit` 그대로.

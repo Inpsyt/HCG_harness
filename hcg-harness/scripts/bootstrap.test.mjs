@@ -613,3 +613,74 @@ test("main init 기본(codex on): 마커 choices.codex=true", () => {
   assert.equal(up, 0);
   assert.equal(store["/proj/scripts/codex-review.mjs"], "// wrapper", "구마커(필드 없음)는 on 으로 간주 — 래퍼 유지");
 });
+
+// ── 0.2.1 회귀: marker harnessVersion 은 플러그인 자신의 plugin.json 을 따른다 ──
+// (하드코딩 fallback 은 매 릴리스 수동 범프가 필요해 0.2.0 에서 누락 → 신규 init 마커가
+//  구버전으로 찍히고 doctor version-skew 오경보가 upgrade 로도 해소되지 않았다.)
+
+import path2 from "node:path";
+import { fileURLToPath as fileURLToPath2 } from "node:url";
+
+const OWN_PLUGIN_JSON = path2
+  .resolve(path2.dirname(fileURLToPath2(import.meta.url)), "..", ".claude-plugin", "plugin.json")
+  .replace(/\\/g, "/");
+
+function pluginVersionFs(store, pluginVersionRef) {
+  const norm = (p) => p.replace(/\\/g, "/");
+  const profile = { id: "hcg", label: "HCG", appDir: "apps/web", setupCommands: [], userOwnedGlobs: [] };
+  return {
+    readdirSync: (dir) => {
+      const d = norm(dir);
+      if (d.endsWith("/profiles")) return [{ name: "hcg", isDirectory: () => true }];
+      if (d === "/profiles/hcg/templates") return [{ name: "CLAUDE.md", isDirectory: () => false, isFile: () => true }];
+      return [];
+    },
+    readFileSync: (p) => {
+      const f = norm(p);
+      if (f.endsWith("/profiles/hcg/profile.json")) return JSON.stringify(profile);
+      if (f === "/profiles/hcg/templates/CLAUDE.md") return "# {{PROJECT_NAME}}";
+      if (f === OWN_PLUGIN_JSON && pluginVersionRef.v != null) return JSON.stringify({ name: "hcg-harness", version: pluginVersionRef.v });
+      if (store[f] != null) return store[f];
+      const e = new Error("ENOENT"); e.code = "ENOENT"; throw e;
+    },
+    existsSync: (p) => {
+      const f = norm(p);
+      if (f === OWN_PLUGIN_JSON) return pluginVersionRef.v != null;
+      return f.endsWith("profile.json") || f in store;
+    },
+    mkdirSync: () => {},
+    writeFileSync: (p, c) => { store[norm(p)] = c; },
+  };
+}
+
+test("main init stamps marker harnessVersion from own plugin.json (no stale hardcode)", () => {
+  const store = {};
+  const fs = pluginVersionFs(store, { v: "9.9.9" });
+  const code = main(
+    ["--mode", "init", "--profile", "hcg", "--project-name", "Acme", "--app-dir", "apps/web",
+     "--target", "/proj", "--profiles-dir", "/profiles"],
+    { fs, log: () => {} }
+  );
+  assert.equal(code, 0);
+  assert.equal(JSON.parse(store["/proj/.claude/.hcg-harness.json"]).harnessVersion, "9.9.9");
+});
+
+test("main upgrade re-stamps harnessVersion from own plugin.json (skew self-heals)", () => {
+  const store = {};
+  const ref = { v: null }; // init 시점: plugin.json 미가독 → fallback 으로 구버전 마커
+  const fs = pluginVersionFs(store, ref);
+  const initCode = main(
+    ["--mode", "init", "--profile", "hcg", "--project-name", "Acme", "--app-dir", "apps/web",
+     "--target", "/proj", "--profiles-dir", "/profiles"],
+    { fs, log: () => {} }
+  );
+  assert.equal(initCode, 0);
+  ref.v = "9.9.9"; // 이후 플러그인이 9.9.9 로 업데이트된 상황
+  const upCode = main(
+    ["--mode", "upgrade", "--profile", "hcg", "--profiles-dir", "/profiles", "--target", "/proj"],
+    { fs, log: () => {} }
+  );
+  assert.equal(upCode, 0);
+  assert.equal(JSON.parse(store["/proj/.claude/.hcg-harness.json"]).harnessVersion, "9.9.9",
+    "upgrade 가 plugin.json 버전으로 재도장해야 doctor version-skew 가 해소된다");
+});

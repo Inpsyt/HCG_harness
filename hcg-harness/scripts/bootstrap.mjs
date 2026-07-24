@@ -296,6 +296,15 @@ export function hashExisting(targetDir, relPaths, fs = NODE_FS) {
 
 function nowIso(deps) { return deps.now ? deps.now() : new Date().toISOString(); }
 
+// marker harnessVersion 의 단일 출처는 플러그인 자신의 plugin.json 이다 — 리터럴은 미가독 시 최후 방어.
+export function readOwnPluginVersion(fs = NODE_FS) {
+  try {
+    const p = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", ".claude-plugin", "plugin.json");
+    const v = JSON.parse(fs.readFileSync(p, "utf8")).version;
+    return typeof v === "string" && v ? v : null;
+  } catch { return null; }
+}
+
 export function main(argv, deps = {}) {
   const fs = deps.fs || NODE_FS;
   const log = deps.log || ((s) => process.stdout.write(s + "\n"));
@@ -327,7 +336,7 @@ export function main(argv, deps = {}) {
     }
     applyWrites(args.target, plan.writes, fs);
     const marker = {
-      profile: profile.id, profileVersion: profile.version || "0.0.0", harnessVersion: deps.harnessVersion || "0.1.5",
+      profile: profile.id, profileVersion: profile.version || "0.0.0", harnessVersion: deps.harnessVersion || readOwnPluginVersion(fs) || "0.2.1",
       bootstrappedAt: nowIso(deps), upgradedAt: null, choices, manifest: buildManifest(rendered),
     };
     writeMarker(args.target, marker, fs);
@@ -349,7 +358,7 @@ export function main(argv, deps = {}) {
     const plan = planUpgrade({ rendered, prevManifest: prev.manifest || {}, currentHashes });
     applyWrites(args.target, plan.writes, fs);
     const marker = { ...prev, profileVersion: profile.version || prev.profileVersion,
-      harnessVersion: deps.harnessVersion || prev.harnessVersion, upgradedAt: nowIso(deps),
+      harnessVersion: deps.harnessVersion || readOwnPluginVersion(fs) || prev.harnessVersion, upgradedAt: nowIso(deps),
       manifest: buildManifest(rendered) };
     writeMarker(args.target, marker, fs);
     log(JSON.stringify({ ok: true, mode: "upgrade",
