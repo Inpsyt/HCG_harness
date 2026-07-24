@@ -48,6 +48,7 @@ description: 신규 Phase를 선언/종료할 때 따르는 의무 절차 — ph
 ## MoSCoW 분류 · fast-path 기록
 
 - **`moscow:`** — 각 Phase entry 는 릴리스 분류(Must/Should/Could/Won't)를 싣는다(plan-agent Phase 0). Won't 은 codex 게이트 D9 의 비차단(부록) 라우팅 근거가 된다(`codex-review` 스킬).
+- **Task 라인 필드** — phase 파일의 각 Task 라인은 `(MoSCoW: · 우선순위: · 난이도: · 티어:)` 를 싣는다. 난이도 판정과 티어 도출은 plan-agent(루브릭은 plan-agent 정의, 매트릭스는 CLAUDE-core §모델 배정 매트릭스), spawn 시 티어 해소·적용은 오케스트레이터 책임이다.
 - **`fast_path_log:`** — 소규모 수정 fast-path(plan ① 생략, 단일 에이전트 직행)는 Phase 를 선언하지 않을 수 있어, 휘발성 "한 줄 선언" 을 별도 audit 로그로 영속화한다(사후 회귀 분석용). Bash 가능 주체(오케스트레이터)가 `tasks/phase-meta.yml` 최상위에 append 한다:
 
   ```yaml
@@ -56,6 +57,7 @@ description: 신규 Phase를 선언/종료할 때 따르는 의무 절차 — ph
       summary: <무엇을 고쳤나 한 줄>
       gates: <4게이트 판정 — 예: 계약무변경·단일backend·설계없음·되돌리기쉬움>
       agent: <라우팅된 단일 담당 에이전트>
+      tier: <T0|T1|T2 — 적용 모델 티어. fast-path 는 should 로 간주해 매트릭스 적용 (CLAUDE-core §모델 배정 매트릭스)>
       codex: <수행 | 생략(사유)>
   ```
 

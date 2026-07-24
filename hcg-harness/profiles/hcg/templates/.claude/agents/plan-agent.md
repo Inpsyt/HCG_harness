@@ -55,6 +55,7 @@ plan-agent 고유의 추가 규약만 여기서 명시한다:
 
 - **base_sha 핸드오프**: plan-agent 는 Bash 미보유(read-only)라 git 을 직접 실행하지 않는다. Phase 선언 직전 HEAD 는 Bash 가능 주체(오케스트레이터/Bash 보유 에이전트)가 `git rev-parse HEAD` 로 캡처해 제공하고, plan-agent 는 phase-meta 에 **기록만** 한다. (상세·근거: `pipeline-phase` 스킬.)
 - **Task 작성 기준**: `.claude/project.md` 「경로」「활성 에이전트」 + 도메인 스킬을 단일 출처로 Task 를 분해한다. 해당 레이어가 비활성이면 그 에이전트 섹션은 생략한다.
+- **난이도 판정·티어 도출**: Task 생성 시 각 Task 의 난이도를 판정한다 — **상** = `contracts/` 변경 포함, 또는 신규 아키텍처 패턴 도입, 또는 2개 이상 에이전트에 파급되는 설계 결정 / **중** = 기존 패턴 위 신규 기능(단일 레이어·계약 무변경) / **하** = 기존 패턴 반복·소규모 수정·정형 작업. 이어서 **CLAUDE-core §모델 배정 매트릭스**(MoSCoW × 난이도)로 티어(T0/T1/T2)를 도출해 Task 라인에 `난이도: · 티어:` 로 기록한다. spawn 시 티어의 해소·적용(`Agent` tool `model` 오버라이드)은 오케스트레이터 책임이다(해소표: `.claude/project.md` 「모델 배정」).
 
 #### Analyze 게이트 (구현 dispatch 전 필수 — Spec Kit `/analyze` analog)
 
@@ -76,7 +77,7 @@ QA 가 기록한 이슈(BUG-xxx)는 `pipeline-phase` 스킬 §이슈 대응(재�
 
 ## Task 형식
 ```markdown
-- [ ] TASK-001: 설명 (MoSCoW: Must · 우선순위: 높음)
+- [ ] TASK-001: 설명 (MoSCoW: Must · 우선순위: 높음 · 난이도: 상 · 티어: T0)
 - [x] TASK-002: 완료된 작업
 - [ ] BUG-001: QA에서 발견된 이슈 (수정필요)
 ```

@@ -154,6 +154,11 @@ claude plugin install hcg-harness@hcg-harness-marketplace
 
 ## 변경 이력
 
+### 0.2.0 — 2026-07-23
+
+- **Task 기반 동적 모델 배정**: plan-agent 가 Task 생성 시 MoSCoW × 난이도로 티어(T0/T1/T2)를 도출해 Task 라인에 기록하고, 오케스트레이터가 spawn 시 `Agent` tool `model` 파라미터로 오버라이드한다(CLAUDE-core §모델 배정 매트릭스 신설). plan = T0 고정, qa = Phase 구현자 max +1 단계(상한 T0), fast-path 는 should 간주 + `fast_path_log.tier` 기록. 구체 모델 alias 는 project.md 「모델 배정」 해소표에만 존재(기본 T1=opus · T2=sonnet) — 모델명 하드코딩 없음(0.1.3 취지 유지). 에이전트 frontmatter 는 `model: inherit` 그대로.
+- **기존 프로젝트 주의**: `.claude/project.md` 는 사용자 소유라 `/hcg-harness:upgrade` 가 덮어쓰지 않는다 — 「모델 배정」 해소표는 수동 반영(또는 `.new` 병합) 필요. 에이전트·CLAUDE-core 는 upgrade 로 재동기화된다.
+
 ### 0.1.5 — 2026-07-15
 
 기존 프로젝트는 `apps/web/package.json` 이 user-owned 이므로 preinstall 가드·engines 를 수동 반영한다.

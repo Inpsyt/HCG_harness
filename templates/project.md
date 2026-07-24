@@ -34,8 +34,8 @@
 - E2E: **Playwright** (HCG 표준) — `playwright-e2e` 스킬을 작성해 front 셸의 `skills:` 에 추가한다.
 
 ## 모델 배정
-- 기본: 전 에이전트 `inherit`(세션 모델 상속) — 템플릿은 특정 모델명을 고정하지 않는다.
-- 비용 최적화가 필요하면 **이 인스턴스에서** 에이전트별 하위 티어를 고정한다(예: db 를 경량 모델로 — 해당 `.claude/agents/*.md` 의 `model:` 수정). 단 qa 는 구현자와 같은 티어 이상 유지(CLAUDE-core fast-path 규칙).
+- 해소표: **T0 = 세션 모델(오버라이드 생략) · T1 = opus · T2 = sonnet** ← 인스턴스에서 조정 — 모델 세대 교체 시 이 줄만 수정한다. (세션 자체가 경량 모델이면 T1/T2 를 세션 이하 alias 로 조정.)
+- 티어 결정·spawn 절차는 **CLAUDE-core §모델 배정 매트릭스**를 따른다 — 구현자 = MoSCoW × 난이도, plan = T0 고정, qa = Phase 구현자 max 에서 한 단계 상향(상한 T0). 에이전트 파일은 `model: inherit` 유지, 오케스트레이터가 spawn 시 `Agent` tool `model` 파라미터로 오버라이드한다(T0 = 생략).
 
 ## 활성 에이전트
 - `<예: db, backend, frontend>` (해당 없는 레이어는 비활성)

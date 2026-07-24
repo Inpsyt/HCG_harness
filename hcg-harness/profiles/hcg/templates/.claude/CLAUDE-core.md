@@ -37,13 +37,32 @@ plan-agent 완료 후 오케스트레이터는 **구현 dispatch(②③④) 전�
 4. **되돌리기 어렵거나 폭발 반경이 큰가?** — auth / 데이터 삭제·마이그레이션 / 결제 / 외부 부작용 / 보안 경로?
 
 - fast-path여도 **직접 코드 수정은 여전히 금지** — 단일 담당 에이전트(②③④ 중 하나)로 라우팅하고 그 에이전트가 검증(tsc/lint/build/test)까지 수행한다.
-- **검수자(qa-agent)는 구현자와 같은 티어 이상 유지** — 특정 모델명에 고정하지 않는다(에이전트는 `model: inherit` = 세션 모델 상속이 기본, 하향 고정은 인스턴스 결정 — `.claude/project.md` 「모델 배정」). 비용 절감은 qa 모델 강등이 아니라 이 fast-path(plan 세리머니 생략)로 한다.
+- **검수자(qa-agent)는 Phase 구현자 티어 max 에서 한 단계 상향(상한 T0)** — 특정 모델명에 고정하지 않는다(§모델 배정 매트릭스). 비용 절감은 qa 모델 강등이 아니라 fast-path(plan 세리머니 생략)와 구현자 티어 최적화로 한다.
 
 **fast-path 내 codex 하위 결정** (게이트 통과와 별개 — opt-out 프로젝트(마커 choices.codex=false)는 codex 게이트가 없으므로 이 하위 결정 자체가 해당 없음):
 - 새 실행 로직(분기 / 정규식 / async / 상태 변화) 추가 → qa-agent + codex 게이트 **유지**(codex가 잡을 게 있음).
 - 순수 상수 / 설정값 / 주석 / 카피, **새 분기 0** → 빌드·타입·lint·grep 검증으로 충분, codex 생략 가능.
 
 **사전 고지 의무 (필수):** fast-path로 가기로 하면 착수 전에 한 줄로 선언한다 — 예: `fast-path: 4게이트 전부 아니오(계약 무변경·단일 backend·설계 결정 없음·되돌리기 쉬움), 새 로직 없어 codex 생략`. 사용자가 거부(veto)하면 즉시 풀 파이프라인으로 전환한다. **선언 없이 fast-path 금지.** 이 선언은 휘발성이므로 사후 회귀 분석을 위해 `tasks/phase-meta.yml` 의 `fast_path_log:` 에도 한 줄 영속화한다(`pipeline-phase` 스킬).
+
+## 모델 배정 매트릭스 (Task 기반 동적 모델 지정)  〔■ HARNESS〕
+
+에이전트 파일은 전부 `model: inherit` 를 유지한다(frontmatter 수정 금지). 모델은 **오케스트레이터가 spawn 시점에 `Agent` tool 의 `model` 파라미터 오버라이드로** 지정한다 — 해당 호출 1회에만 적용되며 frontmatter 보다 우선한다.
+
+- **상대 티어만 사용**: **T0(세션 모델·최상위) > T1(중상위) > T2(경량)**. 구체 모델 alias 매핑(해소표)은 `.claude/project.md` 「모델 배정」 이 단일 출처다 — 방법론 문서·스킬·에이전트 파일에 모델명을 하드코딩하지 않는다(세대 교체 시 인스턴스 해소표만 수정).
+- **구현자(db/backend/front) 티어** — plan-agent 가 Task 생성 시 MoSCoW × 난이도로 도출해 Task 라인에 `난이도: · 티어:` 로 기록한다(난이도 루브릭은 plan-agent 정의):
+
+| MoSCoW \ 난이도 | 상 | 중 | 하 |
+|---|---|---|---|
+| must | T0 | T1 | T1 |
+| should | T1 | T1 | T2 |
+| could | T1 | T2 | T2 |
+
+- **plan-agent = T0 고정** — Phase 당 1회 spawn 이며 기획 품질이 전체를 좌우한다.
+- **qa-agent = 해당 Phase 에서 사용된 구현자 티어 max 에서 한 단계 상향(상한 T0)** — 예: 구현자 T1·T2 → qa T0, 전부 T2 → qa T1.
+- **spawn 절차**: 오케스트레이터는 Task 의 `티어:` 를 읽고 해소표로 alias 변환해 `model` 파라미터로 넘긴다. **T0 은 파라미터 생략(= inherit)** 이다.
+- **fast-path**: MoSCoW 미지정이므로 **should 로 간주**하고 오케스트레이터가 난이도만 약식 판정해 매트릭스를 적용, `tasks/phase-meta.yml` `fast_path_log` 에 `tier:` 를 기록한다(`pipeline-phase` 스킬).
+- **fail-safe(강제 없음)**: 이 규율을 놓치면 inherit(세션 모델)로 spawn 된다 — 실패 방향은 비용 증가이지 품질 저하가 아니다. 워크플로(audit/review/converge 등)와 codex 게이트(외부 모델)는 이 체계 밖이다.
 
 ## 공유 계약서 (contracts/)  〔■ HARNESS · 개념 portable / 파일 목록은 PROJECT〕
 에이전트 간 불일치 방지를 위해 Plan Agent가 관리하는 계약서:
