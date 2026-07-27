@@ -80,7 +80,8 @@ E2E 는 로그인 없이는 대부분 시작도 못 한다. **PLAN 단계 전에
 
 ```json
 {
-  "target":   { "baseUrl": "http://localhost:3000", "env": "local-dev", "scope": "smoke|full|<플로우명>" },
+  "target":   { "baseUrl": "http://localhost:3000", "env": "local-dev", "scope": "smoke|full|<플로우명>",
+                "layers": ["unit", "integration", "e2e"] },
   "repo":     { "root": ".", "monorepo": "pnpm", "workspace": "apps/web" },
   "stack":    { "language": "node", "framework": "next-app-router",
                 "unitRunner": "vitest", "e2eRunner": "playwright",
