@@ -1,0 +1,162 @@
+{
+  "_comment": "qa/results.json 의 작성 예시. 스키마 정본은 ../references/reporting.md. 실제 파일에서는 _comment 를 지운다.",
+
+  "meta": {
+    "project": "CBT 2026",
+    "title": "단체 신청 ~ 응시 ~ 감독 ~ 어드민 E2E",
+    "baseUrl": "http://localhost:3000",
+    "env": "local-dev",
+    "target": "신청 #0097 (간호사 · 1회차 · 온라인 · 단체 · 2명) / 시험 #10015",
+    "commit": "a1b2c3d",
+    "driver": "claude-for-chrome",
+    "stack": {
+      "language": "node",
+      "framework": "next-app-router",
+      "unitRunner": "vitest",
+      "e2eRunner": "playwright"
+    },
+    "startedAt": "2026-07-27T10:05:00+09:00",
+    "finishedAt": "2026-07-27T13:21:19+09:00",
+    "accounts": [
+      { "role": "학생", "id": "qa0002", "note": "로그인·OTP·비밀번호는 사용자가 직접 입력" },
+      { "role": "감독관", "id": "010-****-5678", "note": "OTP 사용자 입력" }
+    ]
+  },
+
+  "layers": [
+    {
+      "name": "unit",
+      "command": "pnpm --filter web vitest run",
+      "passed": 84,
+      "failed": 0,
+      "skipped": 3,
+      "durationMs": 12400,
+      "note": ""
+    },
+    {
+      "name": "typecheck",
+      "command": "pnpm --filter web tsc --noEmit",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 8100,
+      "note": "에러 0"
+    }
+  ],
+
+  "suites": [
+    { "id": "P1", "name": "단체 신청 / 신청내역 조회" },
+    { "id": "P2", "name": "학생 응시" },
+    { "id": "P3", "name": "감독관 모니터링" },
+    { "id": "P4", "name": "어드민 성적 반영" }
+  ],
+
+  "results": [
+    {
+      "id": "QA-1",
+      "suite": "P1",
+      "title": "결제 금액 = 응시료 × 인원",
+      "status": "pass",
+      "expected": "확인 화면 총액이 응시료 × 2명",
+      "actual": "총액이 응시료 × 2명으로 표기됨",
+      "steps": [
+        "직종 간호사 선택, 담당자 인증",
+        "수험생 2명 직접 입력 (QA학생1 / QA학생2)",
+        "확인 & 제출 화면 진입"
+      ],
+      "evidence": [
+        { "type": "screen", "detail": "응시료(1인당) × 2명 = 총액 표기" },
+        { "type": "network", "detail": "POST /api/applications 200" }
+      ],
+      "note": ""
+    },
+    {
+      "id": "QA-5",
+      "suite": "P2",
+      "title": "학생 측 '응시 가능' 노출",
+      "status": "pass",
+      "expected": "시험 목록 카드에 파란 배경 + `응시 가능` 배지",
+      "actual": "`응시 가능` 배지 노출, 카드 클릭 가능",
+      "evidence": [{ "type": "screen", "detail": "배지 텍스트: 응시 가능" }],
+      "note": "어드민 목록 배지는 `채점중`으로 불일치 — issues 참조"
+    },
+    {
+      "id": "QA-7",
+      "suite": "P2",
+      "title": "자동 저장 (autosave)",
+      "status": "pass",
+      "expected": "답 변경마다 서버에 저장되고 재조회 시 값이 유지",
+      "actual": "관측된 autosave 요청 26건 전부 200, 서버 재조회 시 답안 키 105개 확인",
+      "steps": ["1교시 EXAM 진입", "문항 답 선택 반복", "서버 GET 으로 되읽기"],
+      "evidence": [
+        { "type": "network", "detail": "POST /api/student/autosave 200 ×26 (실패 0건)" },
+        { "type": "server", "detail": "GET /api/student/autosave?periodId=304 → 답안 키 105개" }
+      ],
+      "note": ""
+    },
+    {
+      "id": "QA-8",
+      "suite": "P2",
+      "title": "자동 저장 실패 시 모달",
+      "status": "blocked",
+      "expected": "저장 API 실패 시 사용자에게 재시도 모달 노출",
+      "actual": "검증 불가 — 저장 API 를 인위적으로 실패시키려면 응답 가로채기가 필요하고, 이는 사전 승인 대상이라 미실행",
+      "note": "다음 회차에 승인받아 500 응답 주입으로 검증"
+    },
+    {
+      "id": "QA-9",
+      "suite": "P3",
+      "title": "감독관 실시간 모니터링 (요약 카드·폴링·제어)",
+      "status": "blocked",
+      "expected": "감독 대시보드에서 학생 상태가 폴링으로 갱신",
+      "actual": "검증 불가 — 시험 시작 시각을 과거로 설정해 입장 시간창(시작 30분 전 ~ 종료 10분 후)이 이미 마감됨. `입장 불가` 모달로 진입 자체가 차단",
+      "evidence": [
+        { "type": "screen", "detail": "모달: 입장 불가 — 시험이 종료되어 감독 페이지 입장이 마감되었습니다" }
+      ],
+      "note": "시험 시작 시각을 `현재 - 10분`으로 세팅해야 검증 가능"
+    },
+    {
+      "id": "QA-10",
+      "suite": "P4",
+      "title": "응시 결과의 성적 반영",
+      "status": "pass",
+      "expected": "부분 제출 학생의 점수가 어드민 상세에 반영",
+      "actual": "1교시 제출(부분) · 점수 표기 확인, 2·3교시 미응시로 집계",
+      "evidence": [{ "type": "screen", "detail": "상세: 제출(부분) · 2점 / 미응시 1명" }],
+      "note": ""
+    },
+    {
+      "id": "QA-11",
+      "suite": "P4",
+      "title": "성적 엑셀 일괄 다운로드",
+      "status": "skip",
+      "expected": "6시트 xlsx 생성",
+      "actual": "",
+      "note": "이번 범위(스모크) 밖 — 다음 전체 회차에서 수행"
+    }
+  ],
+
+  "issues": [
+    {
+      "severity": "high",
+      "title": "어드민 시험 배지와 학생 화면 상태 불일치",
+      "repro": "시험 시간을 현재 응시 창으로 세팅 후 어드민 시험 목록과 학생 시험 목록을 비교",
+      "expected": "두 화면이 같은 phase 를 표기 (학생 `응시 가능` ↔ 어드민 `응시`)",
+      "actual": "학생은 `응시 가능`, 어드민 목록 배지는 `채점중`",
+      "refs": ["QA-5"]
+    },
+    {
+      "severity": "medium",
+      "title": "응시현황 집계 기준이 목록과 상세에서 다름",
+      "repro": "부분 제출 학생 1명이 있는 시험의 목록 상단과 상세를 비교",
+      "expected": "동일 기준으로 집계",
+      "actual": "목록 `0/2`(완주 기준) vs 상세 `응시 1명(부분 1)`(부분 포함)",
+      "refs": ["QA-10"]
+    }
+  ],
+
+  "nextSteps": [
+    "시험 시작 시각을 `현재 - 10분`으로 세팅해 감독관 모니터링(QA-9) 재시도",
+    "autosave 실패 모달(QA-8)을 응답 주입 승인 후 검증",
+    "자유응시(FREE_PERIOD) 시험을 별도 생성해 전 교시 즉시 응시까지 확인"
+  ]
+}

@@ -7,6 +7,7 @@ color: red
 skills:
   - codex-review
   - verification-ladder
+  - qa-e2e
 ---
 
 # QA Agent - 품질 보증 담당

@@ -10,7 +10,7 @@
     {
       "name": "hcg-harness",
       "source": "./hcg-harness",
-      "description": "HCG portable multi-agent development harness: 5 agent shells + 7 portable skills (pipeline-phase / codex-review / verification-ladder / contract-authoring + db/backend/frontend HCG-stack conventions) + 4 hooks (PreToolUse contracts+destructive guard · PostToolUse lint · SessionStart context · Stop phase-gate) + 5 workflow templates (audit / migrate / test-gen / review / converge) + 2 bootstrap commands (init · upgrade, invoked /hcg-harness:init · :upgrade) backed by the scripts/bootstrap.mjs engine + the hcg stack profile + HARNESS core.",
+      "description": "HCG portable multi-agent development harness: 5 agent shells + 9 portable skills (pipeline-phase / codex-review / verification-ladder / contract-authoring / qa-e2e + db/backend/frontend HCG-stack conventions + ui-standard) + 4 hooks (PreToolUse contracts+destructive guard · PostToolUse lint · SessionStart context · Stop phase-gate) + 5 workflow templates (audit / migrate / test-gen / review / converge) + 3 commands (init · upgrade · qa, invoked /hcg-harness:init · :upgrade · :qa) backed by the scripts/bootstrap.mjs engine + the hcg stack profile + HARNESS core.",
       "version": "0.2.1"
     }
   ]

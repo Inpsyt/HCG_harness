@@ -3,10 +3,11 @@
 > 빈 프로젝트가 (a) **포터블 HCG 하네스**를 설치하고 (b) **인스턴스 슬롯**을 채워
 > 에이전트 셸이 그 프로젝트의 경로·스택·도메인 규칙으로 해소되게 하는 방법.
 >
-> 하네스는 포터블 레이어를 싣는다: 5개 에이전트 셸, 7개 포터블 스킬
-> (프로세스 4 + HCG 스택 컨벤션 3), 4개 hook (PreToolUse 계약+파괴 가드 ·
+> 하네스는 포터블 레이어를 싣는다: 5개 에이전트 셸, 9개 포터블 스킬
+> (프로세스 5 — pipeline-phase · codex-review · verification-ladder · contract-authoring ·
+> qa-e2e · HCG 스택 컨벤션 3 · UI 표준 1), 4개 hook (PreToolUse 계약+파괴 가드 ·
 > PostToolUse lint · SessionStart 컨텍스트 · Stop phase-gate), 5개 워크플로 템플릿,
-> 2개 커맨드(`init` · `upgrade` → `/hcg-harness:init` · `:upgrade`), 부트스트랩 엔진
+> 3개 커맨드(`init` · `upgrade` · `qa` → `/hcg-harness:init` · `:upgrade` · `:qa`), 부트스트랩 엔진
 > (`scripts/bootstrap.mjs`), HCG 프로파일(`profiles/hcg/`), HARNESS 방법론 코어
 > (`CLAUDE-core.md`). 프로젝트 경로·도메인 규칙·codex 게이트 래퍼·프로젝트별 스킬은
 > **소비 프로젝트**에 둔다.
@@ -55,7 +56,7 @@ claude plugin marketplace add <path-to>/hcg_harness
 # 3. 플러그인 설치
 claude plugin install hcg-harness@hcg-harness-marketplace
 
-# 4. 적재 인벤토리 확인 (5 agents + 7 skills + 4 hooks + 5 workflows + 2 commands)
+# 4. 적재 인벤토리 확인 (5 agents + 9 skills + 4 hooks + 5 workflows + 3 commands)
 claude plugin list
 claude plugin details hcg-harness
 ```
@@ -244,7 +245,7 @@ qa-agent의 Phase 완료 게이트(`codex-review` 스킬)는 `npm run codex:revi
 | 검사 | 방법 |
 |---|---|
 | 매니페스트 유효 | `claude plugin validate <pkg> --strict` → exit 0 (방식 A) |
-| 컴포넌트 적재 | `claude plugin details hcg-harness`에 5 agents + 7 skills + 4 hooks + 2 commands 표시 |
+| 컴포넌트 적재 | `claude plugin details hcg-harness`에 5 agents + 9 skills + 4 hooks + 3 commands 표시 |
 | Hook 단위 테스트 | `npm test` (또는 `node --test hcg-harness/hooks/*.test.mjs`) → 전부 통과 |
 | 에이전트 슬롯 해소 | 에이전트 spawn → `.claude/project.md`와 `<domain>` 스킬을 Read하는지 확인 |
 | Lint hook 발화 | app dir 아래 `*.ts` 편집 → PostToolUse가 ESLint 실행; 새 세션 → SessionStart가 phase/이슈 컨텍스트 주입 |
