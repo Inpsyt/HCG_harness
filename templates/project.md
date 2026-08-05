@@ -34,8 +34,7 @@
 - E2E: **Playwright** (HCG 표준) — `playwright-e2e` 스킬을 작성해 front 셸의 `skills:` 에 추가한다.
 
 ## 모델 배정
-- 해소표: **T0 = 세션 모델(오버라이드 생략) · T1 = opus · T2 = sonnet** ← 인스턴스에서 조정 — 모델 세대 교체 시 이 줄만 수정한다. (세션 자체가 경량 모델이면 T1/T2 를 세션 이하 alias 로 조정.)
-- 티어 결정·spawn 절차는 **CLAUDE-core §모델 배정 매트릭스**를 따른다 — 구현자 = MoSCoW × 난이도, plan = T0 고정, qa = Phase 구현자 max 에서 한 단계 상향(상한 T0). 에이전트 파일은 `model: inherit` 유지, 오케스트레이터가 spawn 시 `Agent` tool `model` 파라미터로 오버라이드한다(T0 = 생략).
+- **전 에이전트 세션 모델 상속(inherit)** — 에이전트 파일은 `model: inherit` 유지, 오케스트레이터는 spawn 시 `model` 파라미터를 지정하지 않는다. 티어 매트릭스(T0/T1/T2)·해소표는 0.2.2 에서 폐지되었다(CLAUDE-core §모델 배정).
 
 ## 활성 에이전트
 - `<예: db, backend, frontend>` (해당 없는 레이어는 비활성)

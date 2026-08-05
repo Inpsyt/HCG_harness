@@ -154,6 +154,17 @@ claude plugin install hcg-harness@hcg-harness-marketplace
 
 ## 변경 이력
 
+### 0.2.2 — 2026-08-05
+
+유지보수 라인(v0.2-maintenance) 패치 — CLAUDE-core 의 자기모순 해소 + 모델 배정 매트릭스 폐지. 기존 프로젝트는 `/hcg-harness:upgrade` 로 에이전트·CLAUDE-core 재동기화 권장. `.claude/project.md` 「모델 배정」은 사용자 소유라 수동 반영(해소표 삭제).
+
+- **모델 배정 매트릭스 폐지 (전 에이전트 inherit)**: 0.2.0 의 MoSCoW×난이도 티어 강등은 실패 방향 분석이 반쪽이었다 — 규율을 *놓친* 방향(inherit)은 비용 증가에 그치지만, 규율을 *지킨* 방향(T1/T2 강등)이 품질 저하 → QA 재작업 루프였고 재작업 비용이 토큰 절감을 상회했다. Task 라인 `난이도:`·`티어:` 필드, qa 티어 상향 규칙, project.md 「모델 배정」 해소표 폐지. plan-agent·qa-agent·pipeline-phase 스킬(fast_path_log `tier:` 필드 포함) 동기 갱신. 워크플로·codex 게이트는 종전대로 이 체계 밖.
+- **설계 승인 체크포인트 ①.5 조건부화**: 전 Phase 하드 블록 → §1 판정(가역성×비용) 연동. 되돌리기 어려운 결정(`contracts/` 신설·변경, 스키마/마이그레이션, auth·결제·데이터 삭제/이관·외부 부작용) 포함 시에만 승인 대기, 그 외에는 요약 고지 후 바로 dispatch(veto 가능). §1 "Asking on every ambiguity is its own failure mode" 와의 자기모순 해소.
+- **QA 루프 상한**: "qa 통과할 때까지 ⑤⑥ 반복" 의 무한 루프에 상한 도입 — 동일 이슈 2회 연속 FAIL 시 사용자에게 설계 재검토 에스컬레이션(수렴하지 않는 QA 루프는 설계 결함 신호).
+- **§0 사용자 오버라이드 명문화**: "직접 코드 작성 금지" 절대어와 §0("Explicit instructions from the user in chat always override these defaults")의 충돌 해소 — 사용자 명시 지시는 파이프라인 의무를 오버라이드하며, 오버라이드 시에도 검증 사다리(§4)는 적용.
+- **fast-path veto 시맨틱 명확화**: 사전 고지 후 응답을 기다리지 않고 진행, veto 도착 시점부터 풀 파이프라인 전환(종전 문구는 대기 여부 미명세).
+- **byte-verbatim 동결 해제**: 방법론 문서를 버전 관리되는 살아있는 문서로 전환 — §0~§5 개정 시 변경 이력에 근거를 남긴다.
+
 ### 0.2.1 — 2026-07-24
 
 - **마커 harnessVersion 하드코딩 제거**: `bootstrap.mjs` CLI 가 마커에 찍는 `harnessVersion` 을 하드코딩 fallback 대신 **플러그인 자신의 `.claude-plugin/plugin.json` 에서 읽어** 기록한다(`readOwnPluginVersion`). 0.2.0 설치 테스트에서 발견 — 신규 init 마커가 구버전(0.1.5)으로 찍혀 doctor 가 version-skew 오경보를 냈고 upgrade 로도 해소되지 않았다. 이제 upgrade 도 plugin.json 버전으로 재도장해 skew 가 자가 해소되며, 릴리스마다 리터럴을 수동 범프할 필요가 없다(리터럴은 미가독 시 최후 방어로만 유지). 회귀 테스트 2건 추가(128 → 130).
