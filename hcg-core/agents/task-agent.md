@@ -22,7 +22,8 @@ skills:
   어긋나야 한다면 계약을 수정하지 말고 완료 보고에 명시한다(계약 수정은 오케스트레이터가 사용자와
   합의 후 수행).
 - **UI 작업 시** HCG AX 표준을 적용한다 — 정본은 `ax-wireframe` 스킬(frontend-conventions
-  「UI 표준」 참조). 프로젝트별 구체값은 `contracts/design-guide.md`.
+  「UI 표준」 참조). 프로젝트별 구체값은 `contracts/design-guide.md` — 충돌 시 design-guide
+  (명시 기록된 오버라이드)가 우선한다.
 
 ## 작업 절차
 

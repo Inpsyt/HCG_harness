@@ -33,7 +33,8 @@
 
 ## UI 표준
 - `ax-wireframe` (HCG AX — 전사 표준. 세션에 없으면 설치를 요청하고 임의 디자인 금지).
-  프로젝트별 구체값은 `contracts/design-guide.md`.
+  프로젝트별 구체값·오버라이드는 `contracts/design-guide.md` — 충돌 시 design-guide(사용자
+  합의로 명시 기록된 오버라이드)가 우선한다.
 
 ## 환경변수
 - <키 목록만, placeholder> (예: `DATABASE_URL`, `JWT_SECRET`, … — 실값 금지)
