@@ -1,0 +1,20 @@
+{
+  "id": "hcg",
+  "label": "HCG 표준 (Next.js + Tailwind + MariaDB/Prisma + TanStack + Vitest/Playwright)",
+  "description": "HCG 표준 풀스택 스택 — hcg-core(unhobbled) 하네스 레이어 + 선택형 앱 골격.",
+  "version": "0.1.0",
+  "packageManager": "npm",
+  "appDir": "apps/web",
+  "userOwnedGlobs": [
+    ".claude/project.md",
+    ".claude/skills/**",
+    "contracts/**",
+    "{{APP_DIR}}/**"
+  ],
+  "setupCommands": [
+    "npm install",
+    "npx prisma generate",
+    "npx playwright install",
+    "npm run dev"
+  ]
+}

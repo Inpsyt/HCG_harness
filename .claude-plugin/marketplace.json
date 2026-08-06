@@ -4,7 +4,7 @@
     "name": "HCG"
   },
   "metadata": {
-    "description": "Single-plugin marketplace hosting the portable HCG harness (pipeline, verification, codex gate, HCG-standard stack conventions)."
+    "description": "HCG harness marketplace — two plugins: hcg-core (default, unhobbled methodology + Task-axis parallelism + 3 workflows) and hcg-harness (legacy pipeline harness, frozen at 0.2.x)."
   },
   "plugins": [
     {
@@ -12,6 +12,12 @@
       "source": "./hcg-harness",
       "description": "HCG portable multi-agent development harness: 5 agent shells + 9 portable skills (pipeline-phase / codex-review / verification-ladder / contract-authoring / qa-e2e + db/backend/frontend HCG-stack conventions + ui-standard) + 4 hooks (PreToolUse contracts+destructive guard · PostToolUse lint · SessionStart context · Stop phase-gate) + 5 workflow templates (audit / migrate / test-gen / review / converge) + 3 commands (init · upgrade · qa, invoked /hcg-harness:init · :upgrade · :qa) backed by the scripts/bootstrap.mjs engine + the hcg stack profile + HARNESS core.",
       "version": "0.2.2"
+    },
+    {
+      "name": "hcg-core",
+      "source": "./hcg-core",
+      "description": "HCG unhobbled core (기본 권장): 슬림 방법론(Operating Rules §0–§5 + 작업 라우팅) + Task-축 병렬화(task-agent 1종 · parallel-tasks 스킬) + contracts 문서 규약 + HCG 스택 컨벤션 + 워크플로 3종(migrate · test-gen · converge) + SessionStart 훅 1종 + /hcg-core:init · :upgrade. 파이프라인이 필요한 프로젝트는 hcg-harness(레거시)를 설치 — 동시 설치 금지.",
+      "version": "0.1.0"
     }
   ]
 }

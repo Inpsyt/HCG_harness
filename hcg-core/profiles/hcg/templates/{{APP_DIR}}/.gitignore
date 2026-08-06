@@ -1,0 +1,34 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# next.js
+/.next/
+/out/
+/build
+next-env.d.ts
+
+# misc
+.DS_Store
+*.pem
+
+# debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (keep .env.example)
+.env
+.env.*
+!.env.example
+
+# typescript
+*.tsbuildinfo
+
+# testing
+/coverage
+/test-results/
+/playwright-report/
+/playwright/.cache/

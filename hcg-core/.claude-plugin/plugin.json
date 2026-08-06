@@ -1,0 +1,20 @@
+{
+  "name": "hcg-core",
+  "version": "0.1.0",
+  "description": "HCG unhobbled development core — slim methodology (Operating Rules §0–§5 + work-routing table), Task-axis parallelism (parallel-tasks skill + one full-stack task-agent), doc-convention contracts/, HCG-stack conventions (Next.js App Router · MariaDB+Prisma · TanStack Query/Zustand/RHF/Zod · Vitest+Playwright), 3 fan-out workflow templates (migrate · test-gen · converge), a single SessionStart hook, and /hcg-core:init · :upgrade bootstrap (bootstrap.mjs engine, marker .claude/.hcg-core.json). Projects that want the mandatory pipeline should install the legacy hcg-harness plugin instead — do not install both in one project.",
+  "author": {
+    "name": "HCG"
+  },
+  "homepage": "https://github.com/Inpsyt/HCG_harness",
+  "keywords": [
+    "harness",
+    "agents",
+    "parallel-tasks",
+    "workflows",
+    "conventions",
+    "nextjs",
+    "prisma",
+    "vitest",
+    "playwright"
+  ]
+}

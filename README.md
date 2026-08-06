@@ -1,12 +1,37 @@
-# HCG Harness
+# HCG Harness — 2-plugin marketplace
 
-HCG 프로젝트를 위한 포터블 멀티에이전트 **개발 하네스**. Claude Code 플러그인으로 패키징되어
-있다. 프로세스 방법론과 HCG 표준 스택 컨벤션을 함께 싣고 있어, 새 프로젝트는 **인스턴스 슬롯
-하나**(`.claude/project.md`) + 도메인 스킬만 채우면 전체 파이프라인을 얻는다 — 하네스 재작성 불필요.
+HCG 개발 하네스 마켓플레이스. **플러그인 2개**를 서빙한다 — 프로젝트당 **하나만** 설치한다
+(동시 설치 시 훅 이중 발화·방법론 충돌).
 
-기존 in-repo 하네스에서 추출해 **HCG 표준 스택**(Next.js App Router · MariaDB + Prisma ·
-TanStack Query / Zustand / React Hook Form / Zod · Vitest + Playwright · feature-centric 구조)에
-맞춰 재정렬했다.
+| 플러그인 | 성격 | 권장 대상 |
+|---|---|---|
+| **`hcg-core`** (0.1.0) | **기본 권장** — unhobbled: 단일 세션이 직접 수행, 독립 Task 는 Task-축 병렬화, 대량 작업은 워크플로 fan-out. 게이트·부기 세리머니 없음 | 신규 프로젝트 전부 |
+| **`hcg-harness`** (0.2.2, 동결) | 레거시 — 역할 파이프라인(plan→db/be/fe→qa)·codex 게이트·계약 잠금. 유지보수 패치만 | 파이프라인·하드 게이트가 필요한 무인/규제 환경 |
+
+## hcg-core 빠른 시작
+
+```bash
+claude plugin marketplace add Inpsyt/HCG_harness
+claude plugin install hcg-core@hcg-harness-marketplace
+# 프로젝트 폴더에서 새 세션 → /hcg-core:init
+```
+
+- 방법론: `hcg-core/CLAUDE-core.md`(슬림 — Operating Rules §0~§5 + 작업 라우팅 표)
+- 병렬화: `parallel-tasks` 스킬 + 풀스택 `task-agent` 1종 (역할 분할 없음)
+- 워크플로 3종: `migrate` · `test-gen` · `converge` (`hcg-core/workflows/README.md`)
+- 앱 골격은 init 에서 선택형(`--no-app` = 하네스 레이어 + contracts 만)
+- 레거시 → hcg-core 수동 이행: 레거시 마커(`.claude/.hcg-harness.json`)와 `tasks/` 를 제거하고
+  `/hcg-core:init` 를 `--gap-fill` 방식으로 재실행해 하네스 레이어를 재생성한다(자동 마이그레이터
+  없음 — v1).
+
+---
+
+# hcg-harness (레거시 · 파이프라인)
+
+HCG 프로젝트를 위한 포터블 멀티에이전트 **개발 하네스**. 프로세스 방법론과 HCG 표준 스택 컨벤션을
+함께 싣고 있어, 새 프로젝트는 **인스턴스 슬롯 하나**(`.claude/project.md`) + 도메인 스킬만 채우면
+전체 파이프라인을 얻는다. **HCG 표준 스택**(Next.js App Router · MariaDB + Prisma · TanStack
+Query / Zustand / React Hook Form / Zod · Vitest + Playwright · feature-centric 구조) 기준.
 
 ## 구성
 
@@ -153,6 +178,21 @@ claude plugin install hcg-harness@hcg-harness-marketplace
 ---
 
 ## 변경 이력
+
+### hcg-core 0.1.0 — 2026-08-06
+
+신규 플러그인 — unhobbled 하네스. 설계: 2026-08-05 unhobble 진단(레거시 파이프라인은 Fable 5
+세대에서 순효과 음수)의 반전으로, 단일 세션 직접 수행이 기본이다.
+
+- **구성**: 슬림 CLAUDE-core(~3KB, Operating Rules §0~§5 + 작업 라우팅 표) · `parallel-tasks`
+  스킬(Task-축 병렬화 — 결합도 판정→풀스택 task-agent 병렬 dispatch→통합 검증) · `task-agent`
+  1종(역할 5종 폐지) · 이식 스킬 5종(파이프라인 잔재 제거 — 불일치 보고는 tasks/TODO 가 아니라
+  완료 보고, 계약 잠금 폐지) · 워크플로 3종(migrate·test-gen·converge — audit/review 는
+  ultracode·`/code-review` 내장으로 대체) · SessionStart 훅 1종(마커 `.claude/.hcg-core.json`,
+  레거시 마커 감지 시 혼용 경고) · `/hcg-core:init`(`--no-app` 선택형 앱 골격)·`:upgrade`.
+- **비포함(Won't)**: 파이프라인 모드·codex 게이트·tasks/ 부기·모델 배정 매트릭스·qa-e2e·
+  ui-standard 사본(AX 표준은 upstream `ax-wireframe` 를 frontend-conventions·task-agent·
+  project.md 3곳에서 명시 참조)·자동 마이그레이터.
 
 ### 0.2.2 — 2026-08-05
 

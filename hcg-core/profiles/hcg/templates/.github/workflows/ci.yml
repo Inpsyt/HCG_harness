@@ -1,0 +1,89 @@
+# ci.yml — HCG 하네스가 렌더링한 결정론적 검증 게이트.
+# 에이전트의 수기 검증 기록(tasks/phase-meta.yml)과 "기계의 재검증"을 이중화한다:
+# 기록이 틀려도, 사람이 에이전트 없이 직접 커밋해도 여기서 잡힌다.
+# 의미론적 계약 드리프트(결정론 검사가 못 보는 것)는 converge 워크플로 담당.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  # prisma generate/validate 용 더미 URL — CI 에서 실제 DB 연결은 하지 않는다
+  DATABASE_URL: "mysql://ci:ci@127.0.0.1:3306/ci"
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: {{APP_DIR}}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: "{{APP_DIR}}/package-lock.json"
+      # 잠금파일은 커밋 대상 — 없으면 npm ci 가 여기서 실패한다(재현 불가 빌드 방지)
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm test
+      - run: npm run build
+
+  # contracts/db-schema ↔ Prisma 결정론적 드리프트 게이트.
+  # 스키마·마이그레이션 불일치면 비-0 종료 → 빌드 실패 (templates/ci-contract-drift.md)
+  contract-drift:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: {{APP_DIR}}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: "{{APP_DIR}}/package-lock.json"
+      - run: npm ci
+      - run: npx prisma validate
+      - run: mkdir -p prisma/migrations
+      - run: >
+          npx prisma migrate diff
+          --from-migrations prisma/migrations
+          --to-schema-datamodel prisma/schema.prisma
+          --exit-code
+
+  # E2E 는 실제 DB 가 필요하다 — 사용하려면 아래 주석을 해제 (MariaDB 서비스 컨테이너).
+  # 앱 기동 방식(playwright.config.ts 의 webServer 등)에 맞춰 조정할 것.
+  # e2e:
+  #   runs-on: ubuntu-latest
+  #   services:
+  #     mariadb:
+  #       image: mariadb:11
+  #       env:
+  #         MARIADB_DATABASE: ci
+  #         MARIADB_USER: ci
+  #         MARIADB_PASSWORD: ci
+  #         MARIADB_ROOT_PASSWORD: root
+  #       ports: ["3306:3306"]
+  #       options: >-
+  #         --health-cmd="healthcheck.sh --connect --innodb_initialized"
+  #         --health-interval=5s --health-timeout=5s --health-retries=10
+  #   defaults:
+  #     run:
+  #       working-directory: {{APP_DIR}}
+  #   env:
+  #     DATABASE_URL: "mysql://ci:ci@127.0.0.1:3306/ci"
+  #   steps:
+  #     - uses: actions/checkout@v7
+  #     - uses: actions/setup-node@v6
+  #       with: { node-version: 22, cache: npm, cache-dependency-path: "{{APP_DIR}}/package-lock.json" }
+  #     - run: npm ci
+  #     - run: npx prisma generate
+  #     - run: npx prisma migrate deploy
+  #     - run: npx playwright install --with-deps chromium
+  #     - run: npm run test:e2e

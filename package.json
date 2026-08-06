@@ -5,7 +5,7 @@
   "type": "module",
   "description": "HCG portable development harness — Claude Code plugin marketplace. Repo-level tooling (hook + bootstrap-engine + skill-script unit tests); the plugin itself lives in hcg-harness/.",
   "scripts": {
-    "test": "node --test hcg-harness/hooks/*.test.mjs hcg-harness/scripts/*.test.mjs hcg-harness/skills/*/scripts/*.test.mjs"
+    "test": "node --test hcg-harness/hooks/*.test.mjs hcg-harness/scripts/*.test.mjs hcg-harness/skills/*/scripts/*.test.mjs hcg-core/hooks/*.test.mjs hcg-core/scripts/*.test.mjs"
   },
   "optionalDependencies": {
     "js-yaml": "^4.1.0"
