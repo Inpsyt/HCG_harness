@@ -200,6 +200,10 @@ claude plugin install hcg-harness@hcg-harness-marketplace
   의 명시 기록 오버라이드가 전사 기본값보다 우선, 무기록 이탈 금지 — frontend-conventions·
   project.md·task-agent 에도 동일 명시), shared-types 스텁 `.ts`(typed SSOT) 전환,
   `docs/install.md` 레거시 전용 고지 추가.
+- **커밋 규율 1줄(2026-08-06 deepsearch 검토)**: §4 끝에 "검증 통과 작업 단위마다 커밋 — git 이
+  세션 간 핸드오프·재개의 원장, 메시지에 검증 요약" 추가. 근거: 세션 의도치 않은 종료 시 재개의
+  유일한 약점이 미커밋 창이며, 구조화 핸드오프는 모델 세대를 넘어 살아남는 하네스 4요소 중 하나
+  (2026 harness engineering 실측 — 같은 모델·다른 하네스 = SWE-bench 22점 차).
 - **codex-review 온디맨드 재도입(2026-08-06 딥다이브)**: 상시 게이트는 여전히 비포함 — 뺀
   이유(동기 5–15분 + D9 분류 노동이 모든 변경의 기본 경로에 박힘)는 게이트라는 *형태*의 문제였고,
   교차모델 리뷰의 가치 자체(레거시 Phase 33 에서 workflows 의 fail-open 결함 F7~F13 검출)는
