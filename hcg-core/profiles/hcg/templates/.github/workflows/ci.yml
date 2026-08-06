@@ -1,6 +1,6 @@
 # ci.yml — HCG 하네스가 렌더링한 결정론적 검증 게이트.
-# 에이전트의 수기 검증 기록(tasks/phase-meta.yml)과 "기계의 재검증"을 이중화한다:
-# 기록이 틀려도, 사람이 에이전트 없이 직접 커밋해도 여기서 잡힌다.
+# 세션/task-agent 의 수기 검증(완료 보고)과 "기계의 재검증"을 이중화한다:
+# 보고가 틀려도, 사람이 에이전트 없이 직접 커밋해도 여기서 잡힌다.
 # 의미론적 계약 드리프트(결정론 검사가 못 보는 것)는 converge 워크플로 담당.
 name: ci
 
@@ -35,7 +35,7 @@ jobs:
       - run: npm run build
 
   # contracts/db-schema ↔ Prisma 결정론적 드리프트 게이트.
-  # 스키마·마이그레이션 불일치면 비-0 종료 → 빌드 실패 (templates/ci-contract-drift.md)
+  # 스키마·마이그레이션 불일치면 비-0 종료 → 빌드 실패
   contract-drift:
     runs-on: ubuntu-latest
     defaults:

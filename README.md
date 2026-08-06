@@ -36,9 +36,10 @@ Query / Zustand / React Hook Form / Zod · Vitest + Playwright · feature-centri
 ## 구성
 
 ```
-hcg_harness/                         # 레포 = 단일 플러그인 마켓플레이스
+hcg_harness/                         # 레포 = 2-플러그인 마켓플레이스 (hcg-core · hcg-harness)
 ├─ .claude-plugin/marketplace.json   # hcg-harness-marketplace
-├─ hcg-harness/                      # 플러그인 (hcg-harness)
+├─ hcg-core/                         # 플러그인 (hcg-core — 기본 권장, 상단 참조)
+├─ hcg-harness/                      # 플러그인 (hcg-harness — 레거시)
 │  ├─ .claude-plugin/plugin.json
 │  ├─ CLAUDE-core.md                 # HARNESS 방법론 코어 (pipeline · fast-path · Operating Rules §0–§5)
 │  ├─ agents/                        # 5개 generic 역할 shell: plan · qa · db · backend · front

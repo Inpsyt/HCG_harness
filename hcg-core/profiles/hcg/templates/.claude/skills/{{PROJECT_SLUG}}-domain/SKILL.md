@@ -1,6 +1,6 @@
 ---
 name: {{PROJECT_SLUG}}-domain
-description: {{PROJECT_NAME}}의 불변 비즈니스 도메인 규칙. 모든 에이전트가 spawn 시 로드.
+description: {{PROJECT_NAME}}의 불변 비즈니스 도메인 규칙. task-agent 가 spawn 시 로드하며 세션도 참조.
 ---
 
 # {{PROJECT_NAME}} 도메인 규칙

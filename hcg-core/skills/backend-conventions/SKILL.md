@@ -12,7 +12,7 @@ API·서비스 레이어의 스택 일반 방법론. 프로젝트 고유의 비�
 - `contracts/api-spec.md`의 Request/Response 포맷을 **정확히** 따른다.
 - `contracts/shared-types.ts`의 타입 인터페이스를 **그대로 import하여** 사용한다 (재정의·복제 금지).
 - `contracts/db-schema.md`는 데이터 접근 시 참조한다(읽기 전용).
-- `contracts/`는 **읽기 전용** — 이 역할은 계약을 수정하지 않는다.
+- `contracts/`는 구현 중 **읽기 전용** — 계약 수정은 세션이 사용자 합의 후 별도로 수행한다(↓ 불일치 처리).
 
 ## 스택 원칙 (HCG 표준)
 

@@ -17,11 +17,14 @@ description: 프로젝트에 hcg-core 하네스(+선택형 앱 골격)를 부트
    - **앱 골격 생성 여부**: 예(기본 — 빈 프로젝트) / 아니오(기존 앱에 하네스만 얹음 →
      하네스 레이어 + contracts 만 생성)
 3. **init 실행**:
-   `node "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.mjs" --mode init --profile hcg --project-name "<NAME>" --app-dir apps/web --profiles-dir "${CLAUDE_PLUGIN_ROOT}/profiles" --target "${CLAUDE_PROJECT_DIR}"`
-   (2단계에서 "앱 골격 아니오"를 선택했으면 명령 끝에 `--no-app` 을 붙인다.)
+   `node "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.mjs" --mode init --profile hcg --project-name "<NAME>" --app-dir "<APP_DIR>" --profiles-dir "${CLAUDE_PLUGIN_ROOT}/profiles" --target "${CLAUDE_PROJECT_DIR}"`
+   (`<APP_DIR>` = 2단계 수집값, 기본 `apps/web`. "앱 골격 아니오"를 선택했으면 명령 끝에
+   `--no-app` 을 붙인다.)
 4. **결과 해석** (JSON):
    - `ok:false, blocked:true` → 비어있지 않은 폴더. `--gap-fill`(없는 것만 채움) 또는
      `--force`(덮어씀) 재실행을 제안하고, 동의 시 해당 플래그로 3단계 재실행.
+   - `ok:false, alreadyBootstrapped:true` → 이미 부트스트랩된 프로젝트. 템플릿 갱신은
+     `/hcg-core:upgrade` 를 안내하고, 재생성을 원할 때만 `--force` 재실행.
    - `ok:false, error` → 오류 그대로 보고.
    - `ok:true` → 생성 파일 요약 + `setupCommands` 를 코드블록으로 안내(앱 골격 생성 시에만).
      실행은 사용자 몫.

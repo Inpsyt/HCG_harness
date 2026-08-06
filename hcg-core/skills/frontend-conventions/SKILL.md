@@ -12,7 +12,7 @@ UI 레이어의 스택 일반 방법론. 프로젝트 고유의 화면 구성·�
 - `contracts/design-guide.md`의 디자인 가이드 명세에 따라 구현한다.
 - `contracts/api-spec.md`의 Response 포맷에 맞춰 데이터를 바인딩한다.
 - `contracts/shared-types.ts`의 타입을 **import하여** 사용한다 (재정의 금지).
-- `contracts/`는 **읽기 전용** — 이 역할은 계약을 수정하지 않는다.
+- `contracts/`는 구현 중 **읽기 전용** — 계약 수정은 세션이 사용자 합의 후 별도로 수행한다(↓ 불일치 처리).
 
 ## 스택 원칙 (HCG 표준)
 

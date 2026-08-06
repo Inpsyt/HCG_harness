@@ -38,7 +38,7 @@ description: 공유 계약서(contracts/) 작성·갱신의 포터블 규약 —
 | shared-types | `.ts` 자체가 머신 체크(typed SSOT) | `tsc --noEmit`(구현이 타입을 그대로 import) |
 | design-guide | CSS 변수 토큰 | 하드코딩 색상값 lint(변수만 허용) |
 
-**CI drift 게이트**: 위 결정적 체크를 CI 에 묶어 계약↔코드가 어긋나면 **빌드를 실패**시킨다. 템플릿·배선: `templates/ci-contract-drift.md`. 결정적 체크가 못 잡는 *의미적* drift(누락·모순)는 `converge` 워크플로로 보완한다(read-only, 제안 task 산출).
+**CI drift 게이트**: 위 결정적 체크를 CI 에 묶어 계약↔코드가 어긋나면 **빌드를 실패**시킨다. 템플릿·배선: init 이 렌더하는 `.github/workflows/ci.yml` 의 `contract-drift` 잡(`prisma validate` + `migrate diff --exit-code`). 결정적 체크가 못 잡는 *의미적* drift(누락·모순)는 `converge` 워크플로로 보완한다(read-only, 제안 task 산출).
 > ⚠ "코드를 스펙에서 100% 재생성, 손수정 금지" 까지는 가지 않는다(과함) — 계약을 *권위*로 두고 머신 체크 + drift 게이트로 정합을 강제하는 *point-in-time 조정* 모델.
 
 ## 변경 절차
