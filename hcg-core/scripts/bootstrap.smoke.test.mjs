@@ -26,6 +26,7 @@ test("init: hcg-core 마커·앱 골격 생성, tasks/·codex 부재, 토큰 치
     assert.ok(!existsSync(path.join(dir, "scripts", "codex-review.mjs")), "codex 래퍼 미생성");
     const marker = JSON.parse(readFileSync(path.join(dir, ".claude", ".hcg-core.json"), "utf8"));
     assert.equal(marker.harnessVersion, "0.1.0", "plugin.json 버전 반영");
+    assert.ok(!("codex" in marker.choices), "marker 에 codex choice 없음 (codex 는 온디맨드 스킬 — bootstrap 무관여)");
     const pageOut = readFileSync(path.join(dir, "apps", "web", "app", "page.tsx"), "utf8");
     assert.match(pageOut, /Smoke/);
     assert.ok(!/\{\{/.test(pageOut), "미해소 토큰 없음");

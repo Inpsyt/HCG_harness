@@ -12,6 +12,7 @@
 | 대량 동질 작업 (코드모드·테스트 백필) | `migrate` · `test-gen` 워크플로 |
 | contracts ↔ 코드 드리프트 점검 | `converge` 워크플로 |
 | 코드 리뷰 | `/code-review` (ultra) — 내장 |
+| 외부 교차모델 리뷰 (비가역·고위험 변경·릴리스 전) | `codex-review` 스킬 — 온디맨드·백그라운드, 게이트 아님 |
 | 전면 감사·리서치 | ultracode / 즉석 Workflow — 내장 |
 
 Workflow 기능이 비활성(disableWorkflows)인 환경에서는 대량 작업도 이 세션이 순차로 직접 수행한다.
