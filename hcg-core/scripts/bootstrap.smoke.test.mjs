@@ -8,6 +8,11 @@ import { main } from "./bootstrap.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PROFILES = path.resolve(HERE, "..", "profiles");
+// 리터럴을 박아두면 버전 범프마다 테스트가 깨진다 — 검증 대상은 "마커가 plugin.json 을
+// 그대로 반영하는가"이지 특정 버전 문자열이 아니다.
+const PLUGIN_VERSION = JSON.parse(
+  readFileSync(path.resolve(HERE, "..", ".claude-plugin", "plugin.json"), "utf8"),
+).version;
 
 test("init: hcg-core 마커·앱 골격 생성, tasks/·codex 부재, 토큰 치환", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "hcgcore-boot-"));
@@ -25,7 +30,8 @@ test("init: hcg-core 마커·앱 골격 생성, tasks/·codex 부재, 토큰 치
     assert.ok(!existsSync(path.join(dir, "tasks")), "tasks/ 미생성");
     assert.ok(!existsSync(path.join(dir, "scripts", "codex-review.mjs")), "codex 래퍼 미생성");
     const marker = JSON.parse(readFileSync(path.join(dir, ".claude", ".hcg-core.json"), "utf8"));
-    assert.equal(marker.harnessVersion, "0.1.0", "plugin.json 버전 반영");
+    assert.equal(marker.harnessVersion, PLUGIN_VERSION, "plugin.json 버전 반영");
+    assert.match(PLUGIN_VERSION, /^\d+\.\d+\.\d+$/, "plugin.json 버전이 semver");
     assert.ok(!("codex" in marker.choices), "marker 에 codex choice 없음 (codex 는 온디맨드 스킬 — bootstrap 무관여)");
     const pageOut = readFileSync(path.join(dir, "apps", "web", "app", "page.tsx"), "utf8");
     assert.match(pageOut, /Smoke/);

@@ -24,6 +24,31 @@ claude plugin install hcg-core@hcg-harness-marketplace
   `/hcg-core:init` 를 `--gap-fill` 방식으로 재실행해 하네스 레이어를 재생성한다(자동 마이그레이터
   없음 — v1).
 
+### 무인 실행 — 모델 한도 자동 전환 (`scripts/run-headless.mjs`)
+
+장시간 무인 작업 중 **모델별 사용량 한도로 세션이 끊기면 다른 모델로 자동 재개**한다.
+
+```bash
+node "$CLAUDE_PLUGIN_ROOT/scripts/run-headless.mjs" \
+  --dir . --prompt-file task.txt \
+  --model claude-fable-5 --fallback claude-opus-5,claude-sonnet-5 \
+  --verify "git diff --quiet && cd apps/web && npx tsc --noEmit && npx vitest run"
+```
+
+**왜 세션 밖인가**: 한도에 걸리는 순간 세션 프로세스가 즉시 죽는다 — `CLAUDE.md` 에 "한도면
+모델을 바꿔 계속하라"고 적어도 그 지시를 실행할 주체가 없다. CLI 의 `--fallback-model` 도
+모델이 overloaded/unavailable 일 때 전용이라 **사용량 한도에는 발동하지 않는다**(실측 확인).
+전환은 세션을 띄우는 바깥 층에서만 가능하다.
+
+- **한도 2종 구분**: 모델별 한도(폴백 전환 유효) vs 계정·세션 한도(모델을 바꿔도 막힘 → 대기).
+  뭉뚱그리면 후자에서 폴백 모델만 헛되이 소진한다.
+- **`subtype` 은 판정에 쓰지 않는다** — 오류 시에도 `"success"` 를 반환한다. 판정은 exit code 와
+  `is_error` 로 한다.
+- **`--verify` 는 완주의 외부 증거** — 종료 신호는 "세션이 턴을 끝냈다"일 뿐 "과업이 끝났다"가
+  아니다(`verification-ladder` 를 오케스트레이션 층에 적용).
+- 종료 코드: `0` 완주 · `10` 조용한 미완주(검증 실패) · `20` 모델 한도(폴백 고갈) ·
+  `21` 계정 한도(대기 필요) · `1` 실행 오류.
+
 ---
 
 # hcg-harness (레거시 · 파이프라인)
@@ -215,6 +240,19 @@ claude plugin install hcg-harness@hcg-harness-marketplace
   wrapper 의 실가치(D9 포커스 주입·빈 diff 가드)를 스킬 절차로 흡수해 프로젝트 배선 제로.
   동시에 bootstrap.mjs 의 codex 데드코드(`--no-codex`·`CODEX_*` 토큰·`codexFiles`·marker
   `choices.codex`) 제거 + 회귀 테스트 1건 추가.
+- **무인 실행 러너 추가(2026-08-07 A/B 벤치마크 실측 반영)**: `scripts/run-headless.mjs` —
+  모델별 사용량 한도로 세션이 끊기면 `--fallback` 모델로 같은 세션을 자동 재개한다(위
+  「무인 실행」 절). **세션 안의 지시로는 불가능**하다는 것이 설계 근거 — 한도는 세션
+  프로세스를 즉시 죽여 지시를 실행할 주체가 남지 않고, CLI `--fallback-model` 은 모델
+  overloaded/unavailable 전용이라 사용량 한도에 미발동한다(한도 상태에서 재현). 실측으로
+  확정한 4가지: ① 한도로 죽은 실행의 JSON 에도 `session_id` 가 있어 0턴 세션도 재개 가능
+  ② `subtype` 은 오류 시에도 `"success"` 라 판정 금지(exit code + `is_error` 사용)
+  ③ 재개 시 **원 프롬프트를 다시 실어야 함** — 첫 턴에 한도가 걸리면 이력이 비어 있어
+  "이어서 하라"고만 하면 재개 세션이 아무 일도 않고 정상 종료(라이브 재현 후 수정)
+  ④ 모델별 한도와 계정·세션 한도는 분리 — 후자는 모델을 바꿔도 막히므로 폴백을 시도하지
+  않는다. `--verify` 로 완주를 외부 검증(exit 10 = 조용한 미완주)해 `verification-ladder`
+  를 오케스트레이션 층에 적용한다. 단위 테스트 15건 추가 + bootstrap 스모크의 버전 리터럴
+  제거(plugin.json 대조 — 범프마다 깨지던 것). 플러그인 버전은 0.1.0 유지.
 
 ### 0.2.2 — 2026-08-05
 
