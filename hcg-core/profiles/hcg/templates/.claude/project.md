@@ -14,6 +14,13 @@
 - DB: MariaDB · ORM: Prisma(`provider="mysql"`)
 - 복잡 로직 모듈(필요 시): Fastify(우선) / Express — `services/`
 - 패키지 매니저: npm
+- **추가 도입**: <없음>   ← 표준 스택에 없던 카테고리를 도입하면 한 줄씩 기록
+                          (예: `pdf-lib` — PDF 생성 · MIT · 2026-08-07)
+
+## 운영 규모
+- 규모: <500명 안팎 — 회사 하나에서 전사 사용>   ← init 선택값. 미확정이면 「가정값」이라 적는다
+- 파생: 3년 누적 약 18만 건 · 피크 동시 30명 · 보존 3년(기본 가정)   ← 규모에서 계산
+- 응답 목표: 목록·조회 1초 · 문서 생성·집계 5초 (통상 기준 — 프로젝트 사정에 맞게 조정)
 
 ## 경로
 - db: `prisma/`(schema.prisma · migrations) + 기능별 `features/*/actions.ts`
