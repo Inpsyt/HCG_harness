@@ -4,11 +4,17 @@
 // fail-closed: 오류 시 부분 기록 없이 비-0 종료.
 
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import {
+  readdirSync, readFileSync, existsSync, mkdirSync, writeFileSync,
+  copyFileSync, renameSync, rmSync, rmdirSync,
+} from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const NODE_FS = { readdirSync, readFileSync, existsSync, mkdirSync, writeFileSync };
+const NODE_FS = {
+  readdirSync, readFileSync, existsSync, mkdirSync, writeFileSync,
+  copyFileSync, renameSync, rmSync, rmdirSync,
+};
 
 /** 프로젝트명 → npm/디렉터리 안전 슬러그. 소문자·하이픈, 빈 결과는 "app". */
 export function slugify(name) {
@@ -223,6 +229,54 @@ export function planUpgrade({ rendered, prevManifest = {}, currentHashes = {} })
   return { writes, conflicts, created, overwritten, skipped };
 }
 
+// ── 0.3.0: 이행 램프 — 철거 판정 ────────────────────────────────────────────
+
+/** 철거된 사용자 자산의 아카이브 루트(POSIX 상대경로). */
+export const ARCHIVE_ROOT = "docs/legacy-harness";
+
+/**
+ * 이행 시 파일별 처분을 결정하는 순수 플래너.
+ * retire = { delete, archive, replaceIfPristine } (profile.retiredFiles)
+ * - delete(managed): 미수정 → 삭제 / 사용자 수정 → `.legacy` 백업 후 삭제
+ * - archive(user-owned, hcg-core 대응물 없음): 항상 ARCHIVE_ROOT 로 이동(삭제 금지)
+ * - replaceIfPristine(user-owned, 동일 경로 대응물 있음): 미수정 → 아카이브(교체 허용),
+ *   사용자 수정 → 원 위치 보존 + 사유 보고
+ * 세 목록에 없는 파일은 절대 나타나지 않는다(불가침).
+ */
+export function planRetire({ retire = {}, prevManifest = {}, currentHashes = {}, existingDests = new Set() }) {
+  const deletes = [], backups = [], archives = [], keeps = [], missing = [], blocked = [];
+  const onDisk = (rel) => Object.prototype.hasOwnProperty.call(currentHashes, rel);
+  const pristine = (rel) => currentHashes[rel] === (prevManifest[rel] && prevManifest[rel].sha256);
+  const dest = (rel) => `${ARCHIVE_ROOT}/${rel}`;
+  const taken = (p) => existingDests.has(p);
+
+  for (const rel of retire.delete || []) {
+    if (!onDisk(rel)) { missing.push(rel); continue; }
+    if (pristine(rel)) { deletes.push(rel); continue; }
+    const backupPath = `${rel}.legacy`;
+    // 목적지가 이미 있으면 사용자 파일이다 — 이번 실행 전체를 막는다(부분 철거 금지).
+    if (taken(backupPath)) blocked.push({ relPath: rel, destPath: backupPath, kind: "backup" });
+    else backups.push({ relPath: rel, backupPath });
+  }
+  for (const rel of retire.archive || []) {
+    if (!onDisk(rel)) { missing.push(rel); continue; }
+    const destPath = dest(rel);
+    if (taken(destPath)) blocked.push({ relPath: rel, destPath, kind: "archive" });
+    else archives.push({ relPath: rel, destPath });
+  }
+  for (const rel of retire.replaceIfPristine || []) {
+    if (!onDisk(rel)) { missing.push(rel); continue; }
+    if (!pristine(rel)) {
+      keeps.push({ relPath: rel, reason: "사용자 수정본 — 원 위치 보존. 죽은 에이전트 참조 검토 필요" });
+      continue;
+    }
+    const destPath = dest(rel);
+    if (taken(destPath)) blocked.push({ relPath: rel, destPath, kind: "archive" });
+    else archives.push({ relPath: rel, destPath });
+  }
+  return { deletes, backups, archives, keeps, missing, blocked };
+}
+
 // ── Task 6: planInit — 빈/비어있지않은 폴더 가드 ─────────────────────────────
 
 /**
@@ -249,7 +303,7 @@ export function planInit({ rendered, existing, mode = "strict" }) {
 // ── Task 8: IO 적용 + CLI main() (init·upgrade) ──────────────────────────────
 
 export function parseArgs(argv) {
-  const a = { mode: null, profile: null, projectName: null, appDir: null, target: null, profilesDir: null, initMode: "strict", codex: true };
+  const a = { mode: null, profile: null, projectName: null, appDir: null, target: null, profilesDir: null, initMode: "strict", codex: true, dryRun: false, unknown: [] };
   for (let i = 0; i < argv.length; i++) {
     const t = argv[i];
     const next = () => argv[++i];
@@ -262,6 +316,8 @@ export function parseArgs(argv) {
     else if (t === "--force") a.initMode = "force";
     else if (t === "--gap-fill") a.initMode = "gap-fill";
     else if (t === "--no-codex") a.codex = false;
+    else if (t === "--dry-run") a.dryRun = true;
+    else a.unknown.push(t);
   }
   if (!a.target) a.target = process.env.CLAUDE_PROJECT_DIR || process.cwd();
   if (!a.profilesDir) {
@@ -277,6 +333,76 @@ export function applyWrites(targetDir, writes, fs = NODE_FS) {
     fs.mkdirSync(path.dirname(abs), { recursive: true });
     fs.writeFileSync(abs, w.content, "utf8");
   }
+}
+
+/**
+ * 주어진 상대경로들의 조상 디렉터리 중 비어버린 것을 깊은 것부터 제거한다.
+ * 정리는 부수 효과이므로 실패해도 이행을 막지 않는다(개별 try/catch).
+ */
+export function pruneEmptyDirs(targetDir, relPaths, fs = NODE_FS) {
+  const dirs = new Set();
+  for (const rel of relPaths) {
+    let d = path.posix.dirname(String(rel).split(path.sep).join("/"));
+    while (d && d !== "." && d !== "/") {
+      // 방어: 목록이 프로젝트 밖을 가리키면 조상 추적을 멈춘다(부모 디렉터리 삭제 방지).
+      if (d === ".." || d.startsWith("../") || path.posix.isAbsolute(d)) break;
+      dirs.add(d);
+      d = path.posix.dirname(d);
+    }
+  }
+  const removed = [];
+  const deepestFirst = [...dirs].sort((a, b) => b.split("/").length - a.split("/").length);
+  for (const d of deepestFirst) {
+    const abs = path.join(targetDir, d);
+    try {
+      if (fs.existsSync(abs) && fs.readdirSync(abs).length === 0) { fs.rmdirSync(abs); removed.push(d); }
+    } catch { /* 정리 실패는 무시 */ }
+  }
+  return removed;
+}
+
+/**
+ * planRetire 결과를 디스크에 적용한다.
+ * 충돌 규칙: 목적지가 이미 있으면 **덮어쓰지 않고 원본도 건드리지 않는다**(skipped* 로 보고).
+ * 마커 삭제는 호출자(main)가 미해소 충돌이 없을 때만 마지막에 수행한다.
+ * `done` 은 호출자가 소유한다(기본값은 새 객체) — copyFileSync/rmSync/renameSync 가 중간에
+ * 던져도(EPERM/EBUSY 등) 호출자가 잡은 뒤 이 객체를 그대로 읽어 "어디까지 처리됐는지" 보고할 수 있다.
+ */
+export function applyRetire(targetDir, plan, fs = NODE_FS, done = {
+  deleted: [], backedUp: [], archived: [], skippedBackup: [], skippedArchive: [], prunedDirs: [],
+}) {
+  for (const { relPath, backupPath } of plan.backups) {
+    const backupAbs = path.join(targetDir, backupPath);
+    if (fs.existsSync(backupAbs)) {
+      // 백업 목적지가 이미 존재 — 사용자 파일이다. 덮어쓰지도, 원본을 지우지도 않는다.
+      done.skippedBackup.push({ relPath, backupPath });
+      continue;
+    }
+    const abs = path.join(targetDir, relPath);
+    fs.copyFileSync(abs, backupAbs);
+    fs.rmSync(abs);
+    done.backedUp.push(backupPath);
+    done.deleted.push(relPath);
+  }
+  for (const rel of plan.deletes) {
+    fs.rmSync(path.join(targetDir, rel));
+    done.deleted.push(rel);
+  }
+  const movedSources = [];
+  for (const { relPath, destPath } of plan.archives) {
+    const destAbs = path.join(targetDir, destPath);
+    if (fs.existsSync(destAbs)) {
+      // relPath 를 함께 기록한다 — 리포트가 "프로젝트에 남은 파일"을 이름으로 지목해야 한다.
+      done.skippedArchive.push({ relPath, destPath });
+      continue;
+    }
+    fs.mkdirSync(path.dirname(destAbs), { recursive: true });
+    fs.renameSync(path.join(targetDir, relPath), destAbs);
+    done.archived.push(destPath);
+    movedSources.push(relPath);
+  }
+  done.prunedDirs = pruneEmptyDirs(targetDir, [...done.deleted, ...movedSources], fs);
+  return done;
 }
 
 export function listExisting(targetDir, relPaths, fs = NODE_FS) {
@@ -310,6 +436,15 @@ export function main(argv, deps = {}) {
   const log = deps.log || ((s) => process.stdout.write(s + "\n"));
   const args = parseArgs(argv);
 
+  if (args.unknown.length) {
+    log(JSON.stringify({ ok: false, error: `알 수 없는 인자: ${args.unknown.join(", ")}` }));
+    return 1;
+  }
+  if (args.dryRun && args.mode !== "retire") {
+    log(JSON.stringify({ ok: false, error: "--dry-run 은 --mode retire 에서만 지원합니다." }));
+    return 1;
+  }
+
   let profile;
   try { profile = loadProfile(args.profilesDir, args.profile, fs); }
   catch (e) { log(JSON.stringify({ ok: false, error: e.message })); return 1; }
@@ -336,7 +471,7 @@ export function main(argv, deps = {}) {
     }
     applyWrites(args.target, plan.writes, fs);
     const marker = {
-      profile: profile.id, profileVersion: profile.version || "0.0.0", harnessVersion: deps.harnessVersion || readOwnPluginVersion(fs) || "0.2.2",
+      profile: profile.id, profileVersion: profile.version || "0.0.0", harnessVersion: deps.harnessVersion || readOwnPluginVersion(fs) || "0.3.0",
       bootstrappedAt: nowIso(deps), upgradedAt: null, choices, manifest: buildManifest(rendered),
     };
     writeMarker(args.target, marker, fs);
@@ -366,7 +501,77 @@ export function main(argv, deps = {}) {
     return 0;
   }
 
-  log(JSON.stringify({ ok: false, error: `unknown --mode '${args.mode}' (init|upgrade)` }));
+  if (args.mode === "retire") {
+    const prev = readMarker(args.target, fs);
+    if (!prev) {
+      log(JSON.stringify({ ok: false, error: "레거시 마커가 없습니다(.claude/.hcg-harness.json). 이미 이행되었거나 레거시 하네스 프로젝트가 아닙니다." }));
+      return 1;
+    }
+    const retire = profile.retiredFiles || {};
+    const all = [...(retire.delete || []), ...(retire.archive || []), ...(retire.replaceIfPristine || [])];
+    if (!all.length) {
+      log(JSON.stringify({ ok: false, error: "프로파일에 retiredFiles 선언이 없습니다 — 철거 대상이 없어 중단합니다(마커 유지)." }));
+      return 1;
+    }
+    const currentHashes = hashExisting(args.target, all, fs);
+    const probe = planRetire({ retire, prevManifest: prev.manifest || {}, currentHashes });
+    const candidateDests = [
+      ...probe.backups.map((b) => b.backupPath),
+      ...probe.archives.map((a) => a.destPath),
+    ];
+    const existingDests = listExisting(args.target, candidateDests, fs);
+    const plan = planRetire({ retire, prevManifest: prev.manifest || {}, currentHashes, existingDests });
+
+    if (plan.blocked.length) {
+      // 변경 전에 멈춘다 — 디스크는 그대로, 마커도 그대로. dry-run 과 실제 실행이 같은 판정을 낸다.
+      const report = {
+        deleted: [], backedUp: [], archived: [], prunedDirs: [],
+        skippedBackup: plan.blocked.filter((b) => b.kind === "backup")
+          .map(({ relPath, destPath }) => ({ relPath, backupPath: destPath })),
+        skippedArchive: plan.blocked.filter((b) => b.kind === "archive")
+          .map(({ relPath, destPath }) => ({ relPath, destPath })),
+        keeps: plan.keeps, missing: plan.missing,
+      };
+      log(JSON.stringify({ ok: false, mode: "retire", dryRun: !!args.dryRun, incomplete: true,
+        report, unresolved: plan.blocked,
+        error: "목적지 충돌 — 아무것도 변경하지 않고 중단했습니다. 충돌 파일을 옮기거나 이름을 바꾼 뒤 다시 실행하세요." }));
+      return 1;
+    }
+
+    if (args.dryRun) {
+      log(JSON.stringify({ ok: true, mode: "retire", dryRun: true, plan,
+        hint: "실제 적용은 --dry-run 없이 재실행하세요." }));
+      return 0;
+    }
+
+    // done 은 여기서 소유한다 — applyRetire 도중 fs 오류(EPERM/EBUSY 등)가 던져져도
+    // catch 안에서 "그때까지 처리된 항목"을 그대로 보고할 수 있다(부분 기록이 아니라 부분 *보고*).
+    const done = { deleted: [], backedUp: [], archived: [], skippedBackup: [], skippedArchive: [], prunedDirs: [] };
+    try {
+      applyRetire(args.target, plan, fs, done);
+      const unresolved = [...done.skippedBackup, ...done.skippedArchive];
+      if (unresolved.length) {
+        log(JSON.stringify({ ok: false, mode: "retire", incomplete: true,
+          report: { ...done, keeps: plan.keeps, missing: plan.missing },
+          error: "목적지 충돌로 옮기지 못한 파일이 있습니다. 마커를 유지했으니 충돌을 해소한 뒤 다시 실행하세요.",
+          unresolved }));
+        return 1;
+      }
+      fs.rmSync(path.join(args.target, MARKER_REL)); // 미해소 충돌이 없을 때만, 마지막에 — 재실행 가능성 보존
+    } catch (e) {
+      // 마커는 남는다 → 재실행하면 이미 처리된 것은 missing 으로 빠지고 나머지를 이어서 처리한다.
+      log(JSON.stringify({ ok: false, mode: "retire", partial: true,
+        report: { ...done, keeps: plan.keeps, missing: plan.missing },
+        error: `철거 중 파일 시스템 오류: ${e.message}. 마커를 유지했으니 원인(파일 잠금 등)을 해소한 뒤 다시 실행하세요.` }));
+      return 1;
+    }
+    log(JSON.stringify({ ok: true, mode: "retire", dryRun: false,
+      report: { ...done, keeps: plan.keeps, missing: plan.missing },
+      next: "재건: /hcg-core:init (비어있지 않은 폴더이므로 --gap-fill 로 재실행)" }));
+    return 0;
+  }
+
+  log(JSON.stringify({ ok: false, error: `unknown --mode '${args.mode}' (init|upgrade|retire)` }));
   return 1;
 }
 

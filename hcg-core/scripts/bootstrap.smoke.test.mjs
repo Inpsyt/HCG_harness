@@ -26,6 +26,14 @@ test("init: hcg-core 마커·앱 골격 생성, tasks/·codex 부재, 토큰 치
     assert.equal(code, 0);
     assert.ok(existsSync(path.join(dir, ".claude", ".hcg-core.json")), "hcg-core 마커");
     assert.ok(!existsSync(path.join(dir, ".claude", ".hcg-harness.json")), "레거시 마커 없음");
+    const settings = JSON.parse(
+      readFileSync(path.join(dir, ".claude", "settings.json"), "utf8")
+    );
+    assert.equal(
+      settings.enabledPlugins["hcg-harness@hcg-harness-marketplace"], false,
+      "hcg-core 프로젝트는 레거시 플러그인을 비활성 선언한다"
+    );
+    assert.match(settings.env.SESSION_CONTEXT_LABEL, /session context/);
     assert.ok(existsSync(path.join(dir, "apps", "web", "package.json")), "앱 골격");
     assert.ok(!existsSync(path.join(dir, "tasks")), "tasks/ 미생성");
     assert.ok(!existsSync(path.join(dir, "scripts", "codex-review.mjs")), "codex 래퍼 미생성");

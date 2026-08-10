@@ -2,47 +2,16 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell",
+        "matcher": "Bash|PowerShell",
         "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-contracts-guard.mjs\"",
-            "timeout": 15
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-post-edit-verify.mjs\"",
-            "timeout": 90
-          }
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-destructive-guard.mjs\"", "timeout": 15 }
         ]
       }
     ],
     "SessionStart": [
       {
         "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-session-start-context.mjs\"",
-            "timeout": 15
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-phase-gate-check.mjs\"",
-            "timeout": 15
-          }
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-session-start-context.mjs\"", "timeout": 15 }
         ]
       }
     ]

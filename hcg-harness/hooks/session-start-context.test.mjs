@@ -10,6 +10,7 @@ import {
   extractOpenIssuesSection,
   parseOpenIssues,
   formatContext,
+  formatMigrationBanner,
 } from "./session-start-context.mjs";
 
 const META = `phases:
@@ -113,15 +114,100 @@ test("formatContext: phase with missing title falls back", () => {
   assert.match(out, /Phase 5: \(제목 없음\)/);
 });
 
-import { markerExists, formatBootstrapHint } from "./session-start-context.mjs";
+import {
+  markerExists,
+  formatBootstrapHint,
+  detectHalfMigrated,
+  formatResumeHint,
+} from "./session-start-context.mjs";
 
 test("markerExists true/false", () => {
   assert.equal(markerExists("/p", { existsSync: () => true }), true);
   assert.equal(markerExists("/p", { existsSync: () => false }), false);
 });
 
-test("formatBootstrapHint mentions /hcg-harness:init", () => {
+test("formatBootstrapHint 는 hcg-core:init 을 가리키고 /hcg-harness:init 을 권하지 않는다 (E-D1)", () => {
   const s = formatBootstrapHint("[x]");
-  assert.match(s, /\/hcg-harness:init/);
+  assert.match(s, /\/hcg-core:init/);
+  assert.ok(!s.includes("/hcg-harness:init"), "레거시는 0.3.0 부터 신규 설치 대상이 아니다");
   assert.match(s, /부트스트랩/);
+});
+
+// path.join(projectRoot, rel) 를 다시 rel 로 되돌린다 — fs 스텁이 rel 기준으로만 판단하면
+// 되도록, 실제 path 모듈이 붙이는 플랫폼별 구분자(윈도우 "\\" 포함)를 흡수한다.
+function _relOf(absPath) {
+  return String(absPath)
+    .replace(/\\/g, "/")
+    .replace(/^\/proj\//, "");
+}
+
+test("detectHalfMigrated: 양성 증거 — docs/legacy-harness 아카이브 존재", () => {
+  const has = new Set(["docs/legacy-harness"]);
+  const fs = { existsSync: (p) => has.has(_relOf(p)) };
+  assert.equal(detectHalfMigrated("/proj", fs), true);
+});
+
+test("detectHalfMigrated: 양성 증거 — CLAUDE.md.legacy 백업 존재", () => {
+  const has = new Set(["CLAUDE.md.legacy"]);
+  const fs = { existsSync: (p) => has.has(_relOf(p)) };
+  assert.equal(detectHalfMigrated("/proj", fs), true);
+});
+
+test("detectHalfMigrated: 보강 증거 — 하네스 자산은 있는데 managed 파일만 사라짐", () => {
+  const has = new Set(["contracts", ".claude"]);
+  const fs = { existsSync: (p) => has.has(_relOf(p)) };
+  assert.equal(detectHalfMigrated("/proj", fs), true);
+});
+
+test("detectHalfMigrated: 음성 — 아무 증거도 없으면 false", () => {
+  const fs = { existsSync: () => false };
+  assert.equal(detectHalfMigrated("/proj", fs), false);
+});
+
+test("detectHalfMigrated: 음성 — CLAUDE.md 가 아직 있으면(철거 전) 보강 증거만으론 true 가 아니다", () => {
+  const has = new Set(["contracts", ".claude", "CLAUDE.md"]);
+  const fs = { existsSync: (p) => has.has(_relOf(p)) };
+  assert.equal(detectHalfMigrated("/proj", fs), false);
+});
+
+test("formatResumeHint: hcg-harness:upgrade 재실행으로 안내하고 /hcg-harness:init 을 금지한다", () => {
+  const s = formatResumeHint("[x]");
+  assert.match(s, /\/hcg-harness:upgrade/);
+  assert.match(s, /\/hcg-harness:init/);
+  assert.match(s, /실행하지 마세요/);
+});
+
+import { readFileSync as _readFileSyncForHooksJson } from "node:fs";
+import * as _pathForHooksJson from "node:path";
+import { fileURLToPath as _fileURLToPathForHooksJson } from "node:url";
+
+test("formatMigrationBanner 는 hcg-core 이행을 안내한다", () => {
+  const out = formatMigrationBanner();
+  assert.match(out, /레거시/);
+  assert.match(out, /\/hcg-harness:upgrade/);
+  assert.match(out, /hcg-core/);
+  assert.ok(!out.includes("session context]"), "레이블 줄을 중복 출력하지 않는다");
+});
+
+test("hooks.json: 편집 경로에는 훅이 없고 셸에만 파괴 가드가 붙는다 (0.3.0)", () => {
+  const here = _pathForHooksJson.dirname(_fileURLToPathForHooksJson(import.meta.url));
+  const json = JSON.parse(_readFileSyncForHooksJson(_pathForHooksJson.join(here, "hooks.json"), "utf8"));
+  assert.deepEqual(Object.keys(json.hooks), ["PreToolUse", "SessionStart"]);
+  const m = json.hooks.PreToolUse[0].matcher;
+  assert.equal(m, "Bash|PowerShell");
+  for (const tool of ["Edit", "Write", "MultiEdit", "NotebookEdit"]) {
+    assert.ok(!m.includes(tool), `편집 도구가 matcher 에 있으면 안 된다: ${tool}`);
+  }
+  assert.match(json.hooks.PreToolUse[0].hooks[0].command, /run-destructive-guard\.mjs/);
+  assert.equal(json.hooks.SessionStart[0].hooks[0].timeout, 15);
+});
+
+test("run-destructive-guard.mjs 는 HARNESS_CONTRACTS_WRITE 를 설정해 G1/G3 를 끈다 (E-D2)", () => {
+  const here = _pathForHooksJson.dirname(_fileURLToPathForHooksJson(import.meta.url));
+  const src = _readFileSyncForHooksJson(
+    _pathForHooksJson.join(here, "run-destructive-guard.mjs"),
+    "utf8"
+  );
+  assert.match(src, /process\.env\.HARNESS_CONTRACTS_WRITE\s*=\s*["']1["']/);
+  assert.match(src, /contracts-guard\.mjs/);
 });

@@ -1,16 +1,21 @@
 # 새 프로젝트에 HCG 하네스 설치하기
 
-> **⚠ 이 문서는 레거시 `hcg-harness`(파이프라인 하네스, 0.2.x 동결) 전용이다.** 신규 프로젝트의
-> 기본 권장은 **`hcg-core`**(unhobbled) — 설치·빠른 시작·레거시→hcg-core 수동 이행 가이드는
-> 루트 `README.md` 를 본다.
+> **⚠ 이 문서는 레거시 `hcg-harness`(파이프라인 하네스) 전용이다.** 0.3.0 부터 `hcg-harness` 는
+> **hcg-core 로의 이행 램프일 뿐이다** — 신규 설치는 권장하지 않고, 잔류도 지원 대상이 아니다.
+> 전원 `hcg-core`(unhobbled, 기본 권장)로 이행한다. 이행은 `/hcg-harness:upgrade` 1회로
+> 자동 수행되며(철거 → 정합화 → hcg-core 재건 → 단언), 별도 `resync`/재동기화 명령은 없다.
+> 설치·빠른 시작·이행 가이드는 루트 `README.md` 를 본다.
 
 > 빈 프로젝트가 (a) **포터블 HCG 하네스**를 설치하고 (b) **인스턴스 슬롯**을 채워
 > 에이전트 셸이 그 프로젝트의 경로·스택·도메인 규칙으로 해소되게 하는 방법.
 >
 > 하네스는 포터블 레이어를 싣는다: 5개 에이전트 셸, 9개 포터블 스킬
 > (프로세스 5 — pipeline-phase · codex-review · verification-ladder · contract-authoring ·
-> qa-e2e · HCG 스택 컨벤션 3 · UI 표준 1), 4개 hook (PreToolUse 계약+파괴 가드 ·
-> PostToolUse lint · SessionStart 컨텍스트 · Stop phase-gate), 5개 워크플로 템플릿,
+> qa-e2e · HCG 스택 컨벤션 3 · UI 표준 1), 플러그인이 배선하는 hook **2개**(SessionStart —
+> phase/이슈 컨텍스트 + 이행 안내 배너; PreToolUse — 파괴적 명령 가드만, matcher `Bash|PowerShell`
+> 한정, 새 런처 `run-destructive-guard.mjs` 가 계약 잠금 G1/G3 는 꺼둔 채 유지; 계약 잠금 자체와
+> PostToolUse lint · Stop phase-gate 는 0.3.0 부터 플러그인 배선에서 빠졌다 — 스크립트 자체는
+> 번들에 남아 있고 §1B 복사 설치로 수동 배선할 때만 쓰인다), 5개 워크플로 템플릿,
 > 3개 커맨드(`init` · `upgrade` · `qa` → `/hcg-harness:init` · `:upgrade` · `:qa`), 부트스트랩 엔진
 > (`scripts/bootstrap.mjs`), HCG 프로파일(`profiles/hcg/`), HARNESS 방법론 코어
 > (`CLAUDE-core.md`). 프로젝트 경로·도메인 규칙·codex 게이트 래퍼·프로젝트별 스킬은
@@ -60,7 +65,7 @@ claude plugin marketplace add <path-to>/hcg_harness
 # 3. 플러그인 설치
 claude plugin install hcg-harness@hcg-harness-marketplace
 
-# 4. 적재 인벤토리 확인 (5 agents + 9 skills + 4 hooks + 5 workflows + 3 commands)
+# 4. 적재 인벤토리 확인 (5 agents + 9 skills + 2 hooks + 5 workflows + 3 commands)
 claude plugin list
 claude plugin details hcg-harness
 ```
@@ -83,13 +88,14 @@ generic 골격이므로 프로젝트 고유값은 `args` + `.claude/project.md`�
 (워크플로 기능은 소비 프로젝트에서 활성화돼야 함 — `disableWorkflows`
 / env `CLAUDE_CODE_DISABLE_WORKFLOWS`로 게이트.)
 
-### 자동 부트스트랩 (`/hcg-harness:init`, 권장)
+### 자동 부트스트랩 (`/hcg-harness:init`, 수동 복사보다 권장)
 
 플러그인 설치 후 새 세션을 열면 SessionStart 가 미부트스트랩을 감지해 `/hcg-harness:init` 실행을
 안내한다. `/hcg-harness:init` 는 프레임워크(HCG 기본)·프로젝트명을 묻고, 하네스 레이어 + 최소 앱
-골격을 생성한 뒤 setup 명령(`npm install` 등)을 안내한다(실행은 사용자 몫). 재동기화는
-`/hcg-harness:upgrade`. 아래 §2 "수동 슬롯 채우기"는 부트스트랩을 쓰지 않거나 기존 프로젝트에
-얹을 때의 절차다.
+골격을 생성한 뒤 setup 명령(`npm install` 등)을 안내한다(실행은 사용자 몫). 이행은
+`/hcg-harness:upgrade`(0.3.0 부터 재동기화가 아니라 hcg-core 로의 이행 — 철거 → 정합화 →
+hcg-core 재건 → 단언; 재동기화/`resync` 명령은 없다). 아래 §2 "수동 슬롯 채우기"는 부트스트랩을 쓰지
+않거나 기존 프로젝트에 얹을 때의 절차다.
 
 ### B. 레이아웃 복사 (플러그인 툴링 없이)
 
@@ -249,15 +255,16 @@ qa-agent의 Phase 완료 게이트(`codex-review` 스킬)는 `npm run codex:revi
 | 검사 | 방법 |
 |---|---|
 | 매니페스트 유효 | `claude plugin validate <pkg> --strict` → exit 0 (방식 A) |
-| 컴포넌트 적재 | `claude plugin details hcg-harness`에 5 agents + 9 skills + 4 hooks + 3 commands 표시 |
-| Hook 단위 테스트 | `npm test` (또는 `node --test hcg-harness/hooks/*.test.mjs`) → 전부 통과 |
+| 컴포넌트 적재 | `claude plugin details hcg-harness`에 5 agents + 9 skills + 2 hooks(SessionStart + PreToolUse 파괴적 명령 가드) + 3 commands 표시 |
+| Hook 단위 테스트 | `npm test` (또는 `node --test hcg-harness/hooks/*.test.mjs`) → 전부 통과 (배선 여부와 무관하게 4개 hook 스크립트 전부 테스트 대상) |
 | 에이전트 슬롯 해소 | 에이전트 spawn → `.claude/project.md`와 `<domain>` 스킬을 Read하는지 확인 |
-| Lint hook 발화 | app dir 아래 `*.ts` 편집 → PostToolUse가 ESLint 실행; 새 세션 → SessionStart가 phase/이슈 컨텍스트 주입 |
-| 계약 잠금 발화 | 잠금 해제(센티널 `.claude/contracts-unlock` 생성 또는 기동 시 `HARNESS_CONTRACTS_WRITE=1`) 없이 `contracts/*` 편집 **및** 셸 쓰기(`echo x > contracts/…`, PS `Set-Content`) 시도 → PreToolUse가 거부. 서브에이전트 발화는 미문서화 동작 — **2026-07-10 실측(Windows·플러그인 훅): 서브에이전트의 Write 도 동일하게 거부 확인**; 새 환경/버전에서는 재실측 |
-| 파괴 가드 발화 | Bash/PowerShell `rm -rf /`·`Remove-Item -Recurse -Force C:\`·`prisma migrate reset`은 `HARNESS_DISABLE_DESTRUCTIVE_GUARD=1` 없이 거부됨. 주의: regex 가드(우회 가능 — `find -delete`, `psql -f`); 방어심층이지 벽이 아님 |
+| SessionStart 컨텍스트 발화 | 새 세션 → SessionStart가 phase/이슈 컨텍스트 주입, 레거시 마커(`.claude/.hcg-harness.json`) 프로젝트면 이행 안내 배너도 주입 |
+| Lint hook 발화 | 0.3.0 부터 플러그인 배선에는 없음(§1B 복사 설치로 `.claude/settings.json`에 수동 배선했을 때만 해당) — app dir 아래 `*.ts` 편집 → PostToolUse가 ESLint 실행 |
+| 계약 잠금 발화 | 0.3.0 부터 플러그인 배선에는 없음(§1B 복사 설치로 수동 배선했을 때만 해당) — 잠금 해제(센티널 `.claude/contracts-unlock` 생성 또는 기동 시 `HARNESS_CONTRACTS_WRITE=1`) 없이 `contracts/*` 편집 **및** 셸 쓰기(`echo x > contracts/…`, PS `Set-Content`) 시도 → PreToolUse가 거부. 서브에이전트 발화는 미문서화 동작 — **2026-07-10 실측(Windows·플러그인 훅): 서브에이전트의 Write 도 동일하게 거부 확인**; 새 환경/버전에서는 재실측 |
+| 파괴 가드 발화 | 0.3.0 부터 플러그인 배선에 **복원됨**(`run-destructive-guard.mjs`, PreToolUse matcher `Bash\|PowerShell` 전용 — Edit/Write 등 편집 도구에는 붙지 않는다; 계약 잠금 G1/G3 는 이 런처가 `HARNESS_CONTRACTS_WRITE=1` 로 꺼둔 채 유지) — Bash/PowerShell `rm -rf /`·`Remove-Item -Recurse -Force C:\`·`prisma migrate reset`은 `HARNESS_DISABLE_DESTRUCTIVE_GUARD=1` 없이 거부됨. 주의: regex 가드(우회 가능 — `find -delete`, `psql -f`); 방어심층이지 벽이 아님 |
 | CI 게이트 | init 렌더물 `.github/workflows/ci.yml` 푸시 → GitHub Actions에서 core(lint/tsc/test/build) + contract-drift(prisma validate/migrate diff) 잡 통과 확인. E2E 잡은 주석 해제로 opt-in |
 | 실제 강제 경계 | hook은 guardrail이지 보안 경계가 아니다. OS 레벨 강제는 Claude Code를 `/sandbox`(Seatbelt/bubblewrap)로 실행 — 없으면 Bash가 hook 거부를 우회. `portable-instance-boundary.md` 참조 |
-| Stop의 phase-gate | `tasks/phase-meta.yml`에 진행중·미게이트 phase가 있으면 세션 종료 시 경고(또는 `HARNESS_PHASE_GATE_BLOCK=1`이면 차단) |
+| Stop의 phase-gate | 0.3.0 부터 플러그인 배선에는 없음(§1B 복사 설치로 수동 배선했을 때만 해당) — `tasks/phase-meta.yml`에 진행중·미게이트 phase가 있으면 세션 종료 시 경고(또는 `HARNESS_PHASE_GATE_BLOCK=1`이면 차단) |
 | Hook app dir | 소스 루트가 `apps/web`가 아니면 `POST_EDIT_VERIFY_APP_DIR` 설정(예: `.`, `web`, 또는 쉼표구분 목록); 아니면 lint hook이 조용히 no-op |
 | 타입체크 게이트 | 선택: `POST_EDIT_VERIFY_TSC=1`이면 클린 lint 후 프로젝트 `tsc --noEmit`도 실행 |
 | 세션 라벨 | 선택: `SESSION_CONTEXT_LABEL`을 프로젝트명으로 설정(기본 `[harness session context]`) |

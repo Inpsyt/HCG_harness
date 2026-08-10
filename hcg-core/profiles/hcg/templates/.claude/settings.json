@@ -1,5 +1,8 @@
 {
   "env": {
     "SESSION_CONTEXT_LABEL": "[{{PROJECT_NAME}} session context]"
+  },
+  "enabledPlugins": {
+    "hcg-harness@hcg-harness-marketplace": false
   }
 }

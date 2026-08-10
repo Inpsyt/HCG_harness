@@ -228,7 +228,7 @@ test("planInit gap-fill writes only missing", () => {
 
 // ── Task 7: planUpgrade — 매니페스트 기반 3-way 판정 ─────────────────────────
 
-import { planUpgrade } from "./bootstrap.mjs";
+import { planUpgrade, planRetire, ARCHIVE_ROOT } from "./bootstrap.mjs";
 
 test("planUpgrade: user-owned created if absent, skipped if present", () => {
   const rendered = [{ relPath: "app/page.tsx", content: "NEW", managed: false }];
@@ -683,4 +683,168 @@ test("main upgrade re-stamps harnessVersion from own plugin.json (skew self-heal
   assert.equal(upCode, 0);
   assert.equal(JSON.parse(store["/proj/.claude/.hcg-harness.json"]).harnessVersion, "9.9.9",
     "upgrade 가 plugin.json 버전으로 재도장해야 doctor version-skew 가 해소된다");
+});
+
+// ── 0.3.0: 이행 램프 — 철거 판정 ────────────────────────────────────────────
+
+const RETIRE_FIXTURE = {
+  delete: [".claude/agents/plan-agent.md", "CLAUDE.md"],
+  archive: ["tasks/TODO.md"],
+  replaceIfPristine: [".claude/skills/playwright-e2e/SKILL.md"],
+};
+
+test("planRetire: managed 미수정본은 삭제한다", () => {
+  const out = planRetire({
+    retire: { delete: ["CLAUDE.md"], archive: [], replaceIfPristine: [] },
+    prevManifest: { "CLAUDE.md": { managed: true, sha256: "aaa" } },
+    currentHashes: { "CLAUDE.md": "aaa" },
+  });
+  assert.deepEqual(out.deletes, ["CLAUDE.md"]);
+  assert.deepEqual(out.backups, []);
+});
+
+test("planRetire: managed 사용자 수정본은 .legacy 백업 후 삭제한다", () => {
+  const out = planRetire({
+    retire: { delete: ["CLAUDE.md"], archive: [], replaceIfPristine: [] },
+    prevManifest: { "CLAUDE.md": { managed: true, sha256: "aaa" } },
+    currentHashes: { "CLAUDE.md": "bbb" },
+  });
+  assert.deepEqual(out.deletes, []);
+  assert.deepEqual(out.backups, [{ relPath: "CLAUDE.md", backupPath: "CLAUDE.md.legacy" }]);
+});
+
+test("planRetire: user-owned 는 수정 여부와 무관하게 아카이브로 이동한다", () => {
+  const out = planRetire({
+    retire: { delete: [], archive: ["tasks/TODO.md"], replaceIfPristine: [] },
+    prevManifest: { "tasks/TODO.md": { managed: false, sha256: "aaa" } },
+    currentHashes: { "tasks/TODO.md": "사용자가-계속-수정한-해시" },
+  });
+  assert.deepEqual(out.archives, [
+    { relPath: "tasks/TODO.md", destPath: `${ARCHIVE_ROOT}/tasks/TODO.md` },
+  ]);
+  assert.deepEqual(out.deletes, []);
+});
+
+test("planRetire: replaceIfPristine — 미수정이면 아카이브(교체 허용)", () => {
+  const rel = ".claude/skills/playwright-e2e/SKILL.md";
+  const out = planRetire({
+    retire: { delete: [], archive: [], replaceIfPristine: [rel] },
+    prevManifest: { [rel]: { managed: false, sha256: "aaa" } },
+    currentHashes: { [rel]: "aaa" },
+  });
+  assert.deepEqual(out.archives, [{ relPath: rel, destPath: `${ARCHIVE_ROOT}/${rel}` }]);
+  assert.deepEqual(out.keeps, []);
+});
+
+test("planRetire: replaceIfPristine — 사용자 수정본은 원 위치 보존 + 사유 보고", () => {
+  const rel = ".claude/skills/playwright-e2e/SKILL.md";
+  const out = planRetire({
+    retire: { delete: [], archive: [], replaceIfPristine: [rel] },
+    prevManifest: { [rel]: { managed: false, sha256: "aaa" } },
+    currentHashes: { [rel]: "bbb" },
+  });
+  assert.deepEqual(out.archives, []);
+  assert.equal(out.keeps.length, 1);
+  assert.equal(out.keeps[0].relPath, rel);
+  assert.match(out.keeps[0].reason, /검토/);
+});
+
+test("planRetire: 디스크에 없는 대상은 missing 으로만 보고한다 (멱등)", () => {
+  const out = planRetire({
+    retire: RETIRE_FIXTURE,
+    prevManifest: {},
+    currentHashes: {},
+  });
+  assert.deepEqual(out.deletes, []);
+  assert.deepEqual(out.archives, []);
+  assert.deepEqual(out.backups, []);
+  assert.equal(out.missing.length, 4);
+});
+
+test("planRetire: 목록에 없는 파일은 어떤 버킷에도 나타나지 않는다 (불가침)", () => {
+  const out = planRetire({
+    retire: { delete: ["CLAUDE.md"], archive: [], replaceIfPristine: [] },
+    prevManifest: { "CLAUDE.md": { managed: true, sha256: "aaa" } },
+    currentHashes: { "CLAUDE.md": "aaa", "src/user-file.ts": "zzz", "README.md": "yyy" },
+  });
+  const touched = [
+    ...out.deletes,
+    ...out.backups.map((b) => b.relPath),
+    ...out.archives.map((a) => a.relPath),
+    ...out.keeps.map((k) => k.relPath),
+    ...out.missing,
+  ];
+  assert.ok(!touched.includes("src/user-file.ts"));
+  assert.ok(!touched.includes("README.md"));
+});
+
+// ── Task 3: retiredFiles 선언 + 오타 회귀 가드 ──────────────────────────────
+
+import * as _p from "node:path";
+import { fileURLToPath as _fu } from "node:url";
+
+const PROFILES_DIR = _p.resolve(_p.dirname(_fu(import.meta.url)), "..", "profiles");
+
+test("hcg 프로파일은 retiredFiles 3버킷을 선언한다", () => {
+  const profile = loadProfile(PROFILES_DIR, "hcg");
+  const r = profile.retiredFiles;
+  assert.ok(r, "retiredFiles 필드 존재");
+  assert.deepEqual(r.delete, [
+    ".claude/agents/plan-agent.md",
+    ".claude/agents/db-agent.md",
+    ".claude/agents/backend-agent.md",
+    ".claude/agents/front-agent.md",
+    ".claude/agents/qa-agent.md",
+    "CLAUDE.md",
+    ".claude/CLAUDE-core.md",
+    ".claude/settings.json",
+    ".github/workflows/ci.yml",
+  ]);
+  assert.deepEqual(r.archive, [
+    "tasks/phase-meta.yml",
+    "tasks/TODO.md",
+    "scripts/codex-review.mjs",
+    "contracts/shared-types.md",
+  ]);
+  assert.deepEqual(r.replaceIfPristine, [
+    ".claude/skills/playwright-e2e/SKILL.md",
+    "contracts/db-schema.md",
+    "contracts/api-spec.md",
+    "contracts/design-guide.md",
+  ]);
+});
+
+test("retiredFiles 의 모든 항목은 실제 렌더되는 하네스 파일이다 (오타 가드)", () => {
+  const profile = loadProfile(PROFILES_DIR, "hcg");
+  const templatesDir = _p.join(PROFILES_DIR, profile.id, "templates");
+  const rendered = renderProfile({
+    templatesDir,
+    profile,
+    choices: { projectName: "Guard", appDir: profile.appDir, codex: true },
+  });
+  const known = new Set(rendered.map((f) => f.relPath));
+  const r = profile.retiredFiles;
+  for (const rel of [...r.delete, ...r.archive, ...r.replaceIfPristine]) {
+    assert.ok(known.has(rel), `retiredFiles 항목이 템플릿에 없음(오타 의심): ${rel}`);
+  }
+});
+
+test("retiredFiles 버킷은 managed/user-owned 파티션과 일치한다 (파괴 안전 가드)", () => {
+  const profile = loadProfile(PROFILES_DIR, "hcg");
+  const templatesDir = _p.join(PROFILES_DIR, profile.id, "templates");
+  const rendered = renderProfile({
+    templatesDir,
+    profile,
+    choices: { projectName: "Guard", appDir: profile.appDir, codex: true },
+  });
+  const byPath = new Map(rendered.map((f) => [f.relPath, f]));
+  const r = profile.retiredFiles;
+  // delete 버킷만 파일을 삭제한다 → managed(하네스 소유)여야 한다.
+  for (const rel of r.delete) {
+    assert.equal(byPath.get(rel).managed, true, `delete 버킷은 managed 여야 한다: ${rel}`);
+  }
+  // archive/replaceIfPristine 는 이동만 한다 → user-owned 여야 한다.
+  for (const rel of [...r.archive, ...r.replaceIfPristine]) {
+    assert.equal(byPath.get(rel).managed, false, `archive 계열은 user-owned 여야 한다: ${rel}`);
+  }
 });

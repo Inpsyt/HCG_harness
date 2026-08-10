@@ -197,8 +197,40 @@ export function markerExists(projectRoot, fs = { existsSync }) {
 export function formatBootstrapHint(label) {
   return [
     label,
-    "- 상태: 이 프로젝트는 아직 HCG 하네스로 부트스트랩되지 않았습니다.",
-    "- 다음 단계: `/hcg-harness:init` 를 실행해 프레임워크를 선택하고 하네스 + 앱 골격을 생성하세요.",
+    "- 상태: 이 프로젝트는 아직 하네스로 부트스트랩되지 않았습니다.",
+    "- 신규 프로젝트는 `/hcg-core:init` 을 사용하세요 (hcg-harness 는 0.3.0 부터 이행 전용입니다).",
+  ].join("\n");
+}
+
+/** 이행 중단(철거 완료·재건 전) 흔적 판정 — upgrade.md §0.1 과 같은 증거 규칙. */
+export function detectHalfMigrated(projectRoot, fs = { existsSync }) {
+  const has = (rel) => fs.existsSync(path.join(projectRoot, rel));
+  // 양성 증거: 철거가 남기는 산출물
+  if (has("docs/legacy-harness")) return true;
+  if (has("CLAUDE.md.legacy") || has(".claude/CLAUDE-core.md.legacy")) return true;
+  // 보강 증거: 하네스 자산은 있는데 철거 대상 managed 파일이 사라졌다
+  if (has("contracts") && has(".claude") && !has("CLAUDE.md") && !has(".claude/CLAUDE-core.md")) return true;
+  return false;
+}
+
+/** 철거는 끝났는데 재건이 안 된 프로젝트에 붙는 안내. */
+export function formatResumeHint(label) {
+  return [
+    label,
+    "- ⚠ 이행이 중단된 상태입니다 — 레거시 철거는 끝났고 hcg-core 재건이 남았습니다.",
+    "- 다음 단계: `/hcg-harness:upgrade` 를 다시 실행하세요 — 남은 단계부터 이어서 진행합니다.",
+    "- **`/hcg-harness:init` 을 실행하지 마세요** — 철거한 레거시가 되살아나 이행이 취소됩니다.",
+  ].join("\n");
+}
+
+/**
+ * 레거시 하네스로 부트스트랩된 프로젝트에 붙는 이행 안내.
+ * 레이블 줄은 formatContext 가 이미 출력하므로 여기서는 본문 2줄만 반환한다.
+ */
+export function formatMigrationBanner() {
+  return [
+    "- ⚠ 이 프로젝트는 레거시 hcg-harness 하네스입니다 (0.3.0 = 이행 램프).",
+    "- 이행: `/hcg-harness:upgrade` 1회 → hcg-core 로 전환(잔재 정리 포함). 선행: hcg-core 설치.",
   ].join("\n");
 }
 
@@ -216,6 +248,8 @@ async function main() {
   const label = process.env.SESSION_CONTEXT_LABEL || DEFAULT_LABEL;
 
   if (!markerExists(projectRoot, { existsSync })) {
+    if (existsSync(path.join(projectRoot, ".claude", ".hcg-core.json"))) process.exit(0); // 이행 완료 — hcg-core 훅이 보고
+    if (detectHalfMigrated(projectRoot)) { process.stdout.write(`${formatResumeHint(label)}\n`); process.exit(0); }
     process.stdout.write(`${formatBootstrapHint(label)}\n`);
     process.exit(0);
   }
@@ -233,7 +267,7 @@ async function main() {
     process.exit(0);
   }
 
-  process.stdout.write(`${formatContext(phases, issues, label)}\n`);
+  process.stdout.write(`${formatContext(phases, issues, label)}\n${formatMigrationBanner()}\n`);
   process.exit(0);
 }
 

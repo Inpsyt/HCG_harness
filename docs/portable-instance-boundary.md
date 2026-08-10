@@ -13,7 +13,7 @@ per-project.
 | Agent shells (5) | `hcg-harness/agents/*.md` | Generic, de-instanced role templates. Frontmatter binds only portable skills; body uses generic placeholders / `project.md` pointers. Frontmatter `description` keeps a human-readable HCG-stack hint (not load-bearing). |
 | Process skills (4) | `hcg-harness/skills/{pipeline-phase,codex-review,verification-ladder,contract-authoring}/` | Phase lifecycle, codex gate, verification ladder, contract-authoring (format + SSOT discipline) — stack- and domain-neutral. |
 | Stack conventions (3) | `hcg-harness/skills/{db,backend,frontend}-conventions/` | **HCG-standard** stack methodology (Prisma/MariaDB · Next.js App Router · TanStack/Zustand/RHF/Zod · Vitest/Playwright tests · feature-centric). No project domain values. |
-| Guard + verification hooks (4) | `hcg-harness/hooks/*.mjs` (+ `run-*.mjs` launchers, `*.test.mjs`, `hooks.json`) | PreToolUse contracts-lock + destructive-command guard · PostToolUse ESLint (+ opt-in tsc) · SessionStart context · Stop phase-gate advisory. Instance values (app dir, label, locks) externalized to env — 0 hardcoded project values. |
+| Guard + session hooks (2 wired / 4 bundled) | `hcg-harness/hooks/*.mjs` (+ `run-*.mjs` launchers, `*.test.mjs`, `hooks.json`) | **Wired (0.3.0+):** PreToolUse destructive-command guard only (matcher `Bash\|PowerShell`; the launcher forces contracts-lock G1/G3 off) · SessionStart context + migration banner. The PostToolUse ESLint(+opt-in tsc) and Stop phase-gate scripts still ship in the package but are no longer wired in `hooks.json` — a consuming project can re-wire them manually. Instance values (app dir, label, locks) externalized to env — 0 hardcoded project values. |
 | Workflow templates (5) | `hcg-harness/workflows/*.js` | `audit` / `migrate` / `test-gen` / `review` / `converge` generic skeletons for dynamic-mode fan-out. |
 
 ## Per-project (the consuming project authors)
@@ -40,14 +40,15 @@ Genericized so a fresh install needs **no source edits**, only configuration:
   `node_modules` (pnpm hoist / flat layouts).
 - **Type-check gate** — `POST_EDIT_VERIFY_TSC=1` also runs a project
   `tsc --noEmit` after a clean lint (opt-in: whole-project, so slower).
-- **Contracts lock** — `contracts/` writes are denied by default (PreToolUse
-  `contracts-guard`), including shell writes (`echo > contracts/…`, `tee`,
-  in-place `sed`, PS `Set-Content` — the G3 heuristic). Unlock deliberately for
-  the contract-authoring step only: create the sentinel file
-  `.claude/contracts-unlock` (works mid-session — hook env is fixed at Claude
-  Code startup, so a running plan role cannot set env for itself but CAN
-  write/delete the sentinel), or set `HARNESS_CONTRACTS_WRITE=1` at launch.
-  Delete the sentinel when done. Override the dir with `HARNESS_CONTRACTS_DIR`.
+- **Contracts lock — retired in 0.3.0.** Through 0.2.x, `contracts/` writes
+  were denied by default (PreToolUse `contracts-guard`, G1 + the G3 shell-write
+  heuristic: `echo > contracts/…`, `tee`, in-place `sed`, PS `Set-Content`).
+  0.3.0's launcher (`run-destructive-guard.mjs`) unconditionally sets
+  `HARNESS_CONTRACTS_WRITE=1`, so the lock is off by default now — no unlock
+  sentinel needed. `contracts-guard.mjs` still ships and still honors the
+  sentinel (`.claude/contracts-unlock`) / env var for a project that re-wires
+  it in lock mode, but nothing in the shipped `hooks.json` calls it that way
+  anymore. Override the dir with `HARNESS_CONTRACTS_DIR` if re-wired.
 - **Destructive-command guard** — irreversible Bash/PowerShell (prisma migrate
   reset, SQL DROP/TRUNCATE, `rm -rf` / `Remove-Item -Recurse -Force` on a root,
   `git push --force`) is denied; set `HARNESS_DISABLE_DESTRUCTIVE_GUARD=1` to
@@ -95,10 +96,11 @@ treat this package as the upstream and re-pull rather than diverging.
 Deliberate scope boundaries / platform constraints, surfaced so a consuming
 project adopts with eyes open:
 
-- **Hooks are guardrails, not a security boundary** — the PreToolUse guards are
-  evadable (`find -delete`, `psql -f`, child-process) and key on intent (no agent
-  identity in the payload, re-verified 2026-06-25). Run with `/sandbox` for a real
-  OS-level boundary (see the contracts-guard note above).
+- **Hooks are guardrails, not a security boundary** — the PreToolUse
+  destructive-command guard is evadable (`find -delete`, `psql -f`,
+  child-process) and keys on intent (no agent identity in the payload,
+  re-verified 2026-06-25). Run with `/sandbox` for a real OS-level boundary
+  (see the contracts-guard note above).
 - **Plugin-method per-agent enforcement is limited** — Claude Code ignores the
   `hooks` / `mcpServers` / `permissionMode` frontmatter on *plugin* subagents, so
   per-agent hooks/permissions can't be enforced by the plugin itself; they fall to

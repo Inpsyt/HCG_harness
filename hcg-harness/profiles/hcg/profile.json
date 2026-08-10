@@ -2,7 +2,7 @@
   "id": "hcg",
   "label": "HCG 표준 (Next.js + Tailwind + MariaDB/Prisma + TanStack + Vitest/Playwright)",
   "description": "HCG 표준 풀스택 스택. Next.js App Router · Tailwind · MariaDB+Prisma · TanStack Query · Vitest · Playwright · npm.",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "packageManager": "npm",
   "appDir": "apps/web",
   "userOwnedGlobs": [
@@ -16,6 +16,31 @@
   "codexFiles": [
     "scripts/codex-review.mjs"
   ],
+  "retiredFiles": {
+    "delete": [
+      ".claude/agents/plan-agent.md",
+      ".claude/agents/db-agent.md",
+      ".claude/agents/backend-agent.md",
+      ".claude/agents/front-agent.md",
+      ".claude/agents/qa-agent.md",
+      "CLAUDE.md",
+      ".claude/CLAUDE-core.md",
+      ".claude/settings.json",
+      ".github/workflows/ci.yml"
+    ],
+    "archive": [
+      "tasks/phase-meta.yml",
+      "tasks/TODO.md",
+      "scripts/codex-review.mjs",
+      "contracts/shared-types.md"
+    ],
+    "replaceIfPristine": [
+      ".claude/skills/playwright-e2e/SKILL.md",
+      "contracts/db-schema.md",
+      "contracts/api-spec.md",
+      "contracts/design-guide.md"
+    ]
+  },
   "setupCommands": [
     "npm install",
     "npx prisma generate",

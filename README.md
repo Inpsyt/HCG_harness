@@ -5,8 +5,23 @@ HCG 개발 하네스 마켓플레이스. **플러그인 2개**를 서빙한다 �
 
 | 플러그인 | 성격 | 권장 대상 |
 |---|---|---|
-| **`hcg-core`** (0.1.0) | **기본 권장** — unhobbled: 단일 세션이 직접 수행, 독립 Task 는 Task-축 병렬화, 대량 작업은 워크플로 fan-out. 게이트·부기 세리머니 없음 | 신규 프로젝트 전부 |
-| **`hcg-harness`** (0.2.2, 동결) | 레거시 — 역할 파이프라인(plan→db/be/fe→qa)·codex 게이트·계약 잠금. 유지보수 패치만 | 파이프라인·하드 게이트가 필요한 무인/규제 환경 |
+| **`hcg-core`** (0.1.1) | **기본 권장** — unhobbled: 단일 세션이 직접 수행, 독립 Task 는 Task-축 병렬화, 대량 작업은 워크플로 fan-out. 게이트·부기 세리머니 없음 | 신규 프로젝트 전부 |
+| **`hcg-harness`** (0.3.0, 이행 램프) | 레거시 — 훅은 SessionStart(컨텍스트+이행 안내) + PreToolUse(파괴적 명령 가드, matcher `Bash\|PowerShell` 한정) 2종만 남았다. 계약 잠금(G1/G3)·lint·phase-gate 훅은 배선 해제(스킬·컨벤션 문서로만 남음) — 훅으로 강제하던 하드 게이트는 더 이상 없다. `/hcg-harness:upgrade`는 hcg-core 로의 이행을 수행 | 레거시 프로젝트의 hcg-core 이행 전용 — **신규 설치 권장 안 함** |
+
+### 레거시 → hcg-core 이행
+
+레거시 hcg-harness 로 부트스트랩된 프로젝트는 다음으로 이행한다:
+
+1. **플러그인 갱신**: `claude plugin marketplace update hcg-harness-marketplace` 후
+   `claude plugin update hcg-harness`. **새 세션부터** 0.3.0 이 적용된다 — 이 시점부터 편집
+   경로에 붙던 훅(계약 잠금·lint)은 사라지고 셸 호출에는 파괴적 명령 가드만 남으며,
+   `/hcg-harness:upgrade` 가 이행 명령으로 바뀐다. (갱신 전 세션에서 실행하면 구버전
+   upgrade — 템플릿 재동기화 — 가 돌아가므로 반드시 새 세션에서 진행한다.)
+2. `claude plugin install hcg-core@hcg-harness-marketplace` — 머신당 1회.
+3. 프로젝트에서 `/hcg-harness:upgrade` 1회 — 철거 → project.md 정합화 → hcg-core 재건 → 잔재 0 단언.
+
+철거된 사용자 자산(tasks/ · codex-review 래퍼 · shared-types.md)은 `docs/legacy-harness/` 에
+보존되며, 사용자 수정본은 `<파일>.legacy` 로 백업된다.
 
 ## hcg-core 빠른 시작
 
@@ -20,9 +35,8 @@ claude plugin install hcg-core@hcg-harness-marketplace
 - 병렬화: `parallel-tasks` 스킬 + 풀스택 `task-agent` 1종 (역할 분할 없음)
 - 워크플로 3종: `migrate` · `test-gen` · `converge` (`hcg-core/workflows/README.md`)
 - 앱 골격은 init 에서 선택형(`--no-app` = 하네스 레이어 + contracts 만)
-- 레거시 → hcg-core 수동 이행: 레거시 마커(`.claude/.hcg-harness.json`)와 `tasks/` 를 제거하고
-  `/hcg-core:init` 를 `--gap-fill` 방식으로 재실행해 하네스 레이어를 재생성한다(자동 마이그레이터
-  없음 — v1).
+- 레거시 → hcg-core 이행: hcg-harness 0.3.0 부터 `/hcg-harness:upgrade` 가 철거 → project.md
+  정합화 → hcg-core 재건 → 단언까지 자동 수행한다 — 위 「레거시 → hcg-core 이행」 절 참조.
 
 ### 무인 실행 — 모델 한도 자동 전환 (`scripts/run-headless.mjs`)
 
@@ -68,11 +82,16 @@ hcg_harness/                         # 레포 = 2-플러그인 마켓플레이�
 │  ├─ .claude-plugin/plugin.json
 │  ├─ CLAUDE-core.md                 # HARNESS 방법론 코어 (pipeline · fast-path · Operating Rules §0–§5)
 │  ├─ agents/                        # 5개 generic 역할 shell: plan · qa · db · backend · front
-│  ├─ commands/                      # init · upgrade  (호출: /hcg-harness:init · :upgrade)
-│  ├─ skills/
-│  │  ├─ pipeline-phase · codex-review · verification-ladder · contract-authoring  # 프로세스 (스택 중립)
-│  │  └─ db- · backend- · frontend-conventions                                     # HCG 표준 스택
-│  ├─ hooks/                         # PreToolUse(계약+파괴가드) · PostToolUse(lint) · SessionStart(컨텍스트) · Stop(phase-gate) (+런처 · *.test.mjs)
+│  ├─ commands/                      # init · upgrade · qa  (호출: /hcg-harness:init · :upgrade · :qa)
+│  ├─ skills/                        # 9종
+│  │  ├─ pipeline-phase · codex-review · verification-ladder · contract-authoring · qa-e2e  # 프로세스 (스택 중립)
+│  │  └─ db- · backend- · frontend-conventions · ui-standard                                # HCG 표준 스택
+│  ├─ hooks/                         # 0.3.0부터 SessionStart(컨텍스트+이행 안내) + PreToolUse
+│  │                                  #   (파괴적 명령 가드만, matcher `Bash|PowerShell`, 새 런처
+│  │                                  #   run-destructive-guard.mjs) 2종만 배선. 계약 잠금(G1/G3)은
+│  │                                  #   이 런처가 HARNESS_CONTRACTS_WRITE=1 로 꺼둔 채 유지. 나머지
+│  │                                  #   2종(PostToolUse lint · Stop phase-gate)은 파일은 남아 있으나
+│  │                                  #   hooks.json 미배선 (+런처 · *.test.mjs)
 │  ├─ profiles/hcg/                  # profile.json + templates (HCG 표준 스택 초기 파일)
 │  ├─ scripts/bootstrap.mjs          # 부트스트랩 엔진 (토큰 치환 · init · upgrade)
 │  └─ workflows/                     # audit · migrate · test-gen · review · converge (dynamic-mode 템플릿)
@@ -85,7 +104,11 @@ hcg_harness/                         # 레포 = 2-플러그인 마켓플레이�
 ## 모델
 
 - **포터블** (이 패키지): pipeline ①–⑥, fast-path 게이트 + MoSCoW 범위 규율, verification ladder,
-  codex 리뷰 게이트, 계약 쓰기잠금 + 파괴명령 가드(PreToolUse), HCG 표준 db/backend/frontend 컨벤션.
+  codex 리뷰 게이트, HCG 표준 db/backend/frontend 컨벤션. 계약 쓰기잠금(PreToolUse G1/G3) 훅은
+  0.3.0 부터 미배선(스킬·컨벤션 문서로만 남음). 파괴명령 가드(PreToolUse G2)는 새 런처
+  `run-destructive-guard.mjs`로 복원되어 matcher `Bash|PowerShell` 한정으로 기본 배선된다(편집
+  도구에는 붙지 않는다) — 그 이상의 하드 게이트가 필요하면 hooks.json 을 프로젝트 측에서 직접
+  재배선한다.
 - **프로젝트별** (소비 레포): `.claude/project.md`(단일 슬롯), 도메인 스킬, `contracts/*`, 앱 코드.
 
 5개 agent shell은 **generic·de-instanced 템플릿** — 프로젝트 도메인 문자열을 담지 않고,
@@ -95,7 +118,8 @@ hcg_harness/                         # 레포 = 2-플러그인 마켓플레이�
 
 ## 자동 부트스트랩 (`/hcg-harness:init` · `/hcg-harness:upgrade`)
 
-새 프로젝트를 시작하는 권장 방식이다.
+레거시 하네스로 이미 부트스트랩된 프로젝트를 위한 자동화 경로다(수동 복사보다 권장) — **신규
+프로젝트는 대신 `hcg-core`를 설치한다**(0.3.0 부터 hcg-harness 는 이행 전용, 상단 참조).
 
 **요구사항(최소)**: Node.js 22+ (npm 10+ 동봉, 별도 설치 불요) · git · Claude Code CLI. **배포 서버 표준 스펙(HCG 규정): node 22.13.0 · npm 10.9.2 · pm2 7.0.3** — HCG 프로파일의 패키지 매니저는 npm(파이프라인이 소스에서 `npm ci` 설치), 잠금파일은 `package-lock.json`(커밋 대상). 생성 앱은 engines(node>=22/npm>=10) + `.npmrc`(engine-strict) + preinstall 가드(`only-allow npm` — pnpm/yarn 설치 차단)로 표준을 기계 강제한다. DB(MariaDB/MySQL)는 앱을 실제 DB에 연결·마이그레이션할 때만 필요(부트스트랩·빌드엔 불요).
 
@@ -125,7 +149,8 @@ npx playwright install
 npm run dev                   # http://localhost:3000
 ```
 
-**재적용**(템플릿 갱신)은 세션에서 `/hcg-harness:upgrade`. (마켓플레이스가 git 소스면 먼저 `claude plugin marketplace update hcg-harness-marketplace`로 최신 커밋 반영.)
+0.3.0 부터 `/hcg-harness:upgrade` 는 템플릿 재동기화가 아니라 **hcg-core 로의 이행**을 수행한다 —
+위 「레거시 → hcg-core 이행」 절 참조.
 
 **핵심 결정**
 - 생성 범위: 하네스 레이어 + **최소** 앱 골격(데모 없음) + setup 명령 **안내**(자동 실행 안 함)
@@ -134,8 +159,8 @@ npm run dev                   # http://localhost:3000
 - 트리거: `/hcg-harness:init` 커맨드 + SessionStart 감지기 (플러그인 제약상 "설치 즉시 실행"은 불가)
 - agent 바인딩: 5개 shell을 `.claude/agents/`로 복사 후 frontmatter 바인딩 (자족성·자동로딩)
 - 생성 엔진: 얇은 커맨드 + `scripts/bootstrap.mjs`(단순 토큰 치환·결정적·테스트 대상)
-- 재적용: **`/hcg-harness:upgrade`** — 마커+매니페스트(해시) 기반으로 사용자 수정은 보존하며 하네스
-  관리 파일만 안전 재생성 (복사 방식의 drift 해소책)
+- 이행: **`/hcg-harness:upgrade`** — 0.3.0 부터 마커+매니페스트 기반 템플릿 재생성이 아니라
+  철거(retire) → `project.md` 정합화 → `/hcg-core:init --gap-fill` 재건 → 단언 7종으로 재정의
 
 ---
 
@@ -152,11 +177,13 @@ claude plugin list                                         # 확인: hcg-harness
 
 **② 세션 재시작** — 플러그인이 서빙하는 스킬·훅·에이전트·커맨드·워크플로는 새 세션부터 새 버전으로 동작한다.
 
-**③ (템플릿 변경이 포함된 릴리스면) 프로젝트 파일 재동기화**
+**③ (0.3.0 이상이면) hcg-core 로 이행**
 ```
 /hcg-harness:upgrade
 ```
-`/hcg-harness:init`으로 프로젝트 안에 이미 생성된 하네스 관리 파일은 플러그인 업데이트만으로는 바뀌지 않는다. `upgrade`가 마커+매니페스트(해시) 기반으로 사용자 수정은 보존하고 하네스 관리 파일만 재생성한다(충돌 시 `.new`로 생성).
+0.3.0 부터 `upgrade`는 프로젝트 파일 재동기화가 아니라 **hcg-core 로의 이행**(철거 → 정합화 → 재건 →
+단언)을 수행한다 — 위 「레거시 → hcg-core 이행」 절 참조. (0.2.x 이하 릴리스에서는 여전히 마커+
+매니페스트 기반 템플릿 재동기화였다 — 아래 변경 이력 참조.)
 
 > **배포 측 규칙**: 내용 변경을 푸시할 때는 `plugin.json` · `marketplace.json`의 `version`을 반드시 올린다. 버전이 그대로면 소비 측에서 "이미 최신"으로 판단해 업데이트가 감지되지 않을 수 있다.
 
@@ -252,7 +279,33 @@ claude plugin install hcg-harness@hcg-harness-marketplace
   ④ 모델별 한도와 계정·세션 한도는 분리 — 후자는 모델을 바꿔도 막히므로 폴백을 시도하지
   않는다. `--verify` 로 완주를 외부 검증(exit 10 = 조용한 미완주)해 `verification-ladder`
   를 오케스트레이션 층에 적용한다. 단위 테스트 15건 추가 + bootstrap 스모크의 버전 리터럴
-  제거(plugin.json 대조 — 범프마다 깨지던 것). 플러그인 버전은 0.1.0 유지.
+  제거(plugin.json 대조 — 범프마다 깨지던 것). 이 변경 자체는 플러그인 버전 범프 대상이 아니었다
+  (0.1.0 유지) — 이후 0.1.1 로의 범프는 아래 항목 참조.
+
+### hcg-core 0.1.1 — 2026-08-07
+
+settings 템플릿이 레거시 플러그인(`hcg-harness`)을 `enabledPlugins` 에서 `false` 로 명시
+선언하도록 변경 — 이행된 프로젝트가 레거시 하네스와 hcg-core 를 동시에 활성 상태로 두어 훅
+이중 발화·방법론 충돌을 겪지 않도록 한다.
+
+### hcg-harness 0.3.0 — 2026-08-07
+
+이행 램프 — 레거시 하네스를 hcg-core 로 넘기는 다리. 훅 4종(PreToolUse 계약+파괴 가드 ·
+PostToolUse lint · SessionStart 컨텍스트 · Stop phase-gate) → **2종**(SessionStart 컨텍스트+이행
+안내, PreToolUse 파괴적 명령 가드만 matcher `Bash|PowerShell` 로 새 런처 `run-destructive-guard.mjs`
+경유 복원 — 계약 잠금 G1/G3 는 이 런처가 `HARNESS_CONTRACTS_WRITE=1` 로 꺼둔 채 유지)으로 다이어트,
+플러그인 배선에서 빠진 2종(PostToolUse lint · Stop phase-gate)의 hook 스크립트는 복사 설치(§1B)
+수동 배선용으로 번들에 남는다.
+SessionStart 는 기존 phase/이슈 컨텍스트 주입에 **이행 안내 배너**(레거시 마커 프로젝트에
+`/hcg-harness:upgrade` 권유)를 더한다. **`/hcg-harness:upgrade` 재정의**: 종전의 마커+매니페스트
+템플릿 재동기화 대신, 철거(retire) → `.claude/project.md` 섹션 정합화 → `/hcg-core:init --gap-fill`
+재건 → 이행 완료 단언 7종을 수행한다. 신설 **`--mode retire` 엔진**(`scripts/bootstrap.mjs`):
+`retiredFiles`(delete·archive·replaceIfPristine) 3버킷을 프로파일에서 선언적으로 읽어
+managed 미수정 파일은 삭제, 사용자 수정본은 `.legacy` 백업 후 삭제, user-owned 자산은
+`docs/legacy-harness/` 로 아카이브(무수정 대응물은 교체 허용, 수정본은 원 위치 보존 + 검토
+사유 보고) — 이행 후 고아 파일 0을 스모크로 단언한다. 레거시 5-agent·9-skill·명령 표면은
+아직 이행하지 않은 프로젝트를 위해 그대로 유지된다. 신규 설치는 권장하지 않으며 잔류도 지원
+대상이 아니다 — 전원 hcg-core 로 이행한다(설계 결정, 이하 워크플로 코드리뷰 개정 E 참조).
 
 ### 0.2.2 — 2026-08-05
 
