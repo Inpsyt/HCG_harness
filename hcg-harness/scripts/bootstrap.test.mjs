@@ -778,6 +778,78 @@ test("planRetire: 목록에 없는 파일은 어떤 버킷에도 나타나지 �
   assert.ok(!touched.includes("README.md"));
 });
 
+// ── 0.3.1: blocked 버킷(목적지 충돌 사전 판정) 단위 커버리지 ─────────────────
+// 철거는 all-or-nothing 이다 — 목적지가 이미 점유된 항목은 실행 버킷(backups/archives)에서
+// 빠지고 blocked 로만 보고되어야 한다. 이 판정이 무너지면 dry-run 이 통과시킨 계획이
+// 실제 실행 중간에 멈춰 프로젝트가 반쯤 뜯긴 채 남는다.
+
+test("planRetire: 백업 목적지가 점유되어 있으면 backups 대신 blocked 로 간다", () => {
+  const out = planRetire({
+    retire: { delete: ["CLAUDE.md"], archive: [], replaceIfPristine: [] },
+    prevManifest: { "CLAUDE.md": { managed: true, sha256: "aaa" } },
+    currentHashes: { "CLAUDE.md": "bbb" }, // 사용자 수정 → 원래는 .legacy 백업 대상
+    existingDests: new Set(["CLAUDE.md.legacy"]),
+  });
+  assert.deepEqual(out.backups, [], "충돌 항목은 실행 버킷에 남으면 안 된다");
+  assert.deepEqual(out.deletes, []);
+  assert.deepEqual(out.blocked, [
+    { relPath: "CLAUDE.md", destPath: "CLAUDE.md.legacy", kind: "backup" },
+  ]);
+});
+
+test("planRetire: 아카이브 목적지가 점유되어 있으면 archives 대신 blocked 로 간다", () => {
+  const rel = "tasks/TODO.md";
+  const out = planRetire({
+    retire: { delete: [], archive: [rel], replaceIfPristine: [] },
+    prevManifest: {},
+    currentHashes: { [rel]: "zzz" },
+    existingDests: new Set([`${ARCHIVE_ROOT}/${rel}`]),
+  });
+  assert.deepEqual(out.archives, []);
+  assert.deepEqual(out.blocked, [
+    { relPath: rel, destPath: `${ARCHIVE_ROOT}/${rel}`, kind: "archive" },
+  ]);
+});
+
+test("planRetire: replaceIfPristine 미수정본도 목적지 충돌이면 blocked 로 간다", () => {
+  const rel = ".claude/skills/playwright-e2e/SKILL.md";
+  const out = planRetire({
+    retire: { delete: [], archive: [], replaceIfPristine: [rel] },
+    prevManifest: { [rel]: { managed: false, sha256: "aaa" } },
+    currentHashes: { [rel]: "aaa" }, // 미수정 → 원래는 아카이브 대상
+    existingDests: new Set([`${ARCHIVE_ROOT}/${rel}`]),
+  });
+  assert.deepEqual(out.archives, []);
+  assert.deepEqual(out.keeps, [], "미수정본이 keeps 로 새면 안 된다");
+  assert.deepEqual(out.blocked, [
+    { relPath: rel, destPath: `${ARCHIVE_ROOT}/${rel}`, kind: "archive" },
+  ]);
+});
+
+test("planRetire: replaceIfPristine 수정본은 목적지가 점유돼 있어도 keeps 다 (애초에 옮기지 않음)", () => {
+  const rel = ".claude/skills/playwright-e2e/SKILL.md";
+  const out = planRetire({
+    retire: { delete: [], archive: [], replaceIfPristine: [rel] },
+    prevManifest: { [rel]: { managed: false, sha256: "aaa" } },
+    currentHashes: { [rel]: "bbb" }, // 사용자 수정 → 원 위치 보존
+    existingDests: new Set([`${ARCHIVE_ROOT}/${rel}`]),
+  });
+  assert.deepEqual(out.blocked, [], "옮기지 않는 파일은 목적지 충돌과 무관하다");
+  assert.equal(out.keeps.length, 1);
+  assert.equal(out.keeps[0].relPath, rel);
+});
+
+test("planRetire: existingDests 를 주지 않으면 blocked 는 비어 있다 (기본 경로 회귀)", () => {
+  const out = planRetire({
+    retire: RETIRE_FIXTURE,
+    prevManifest: { "CLAUDE.md": { managed: true, sha256: "aaa" } },
+    currentHashes: { "CLAUDE.md": "aaa", "tasks/TODO.md": "x" },
+  });
+  assert.deepEqual(out.blocked, []);
+  assert.deepEqual(out.deletes, ["CLAUDE.md"]);
+  assert.equal(out.archives.length, 1);
+});
+
 // ── Task 3: retiredFiles 선언 + 오타 회귀 가드 ──────────────────────────────
 
 import * as _p from "node:path";

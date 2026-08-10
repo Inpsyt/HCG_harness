@@ -33,13 +33,17 @@ per-project.
 
 Genericized so a fresh install needs **no source edits**, only configuration:
 
-- **App dir(s)** — the lint hook scopes to `apps/web` by default; set env
-  `POST_EDIT_VERIFY_APP_DIR` to your source root (`.` for a non-monorepo) or a
-  comma-separated list for several apps/packages. The eslint/tsc binary resolves
-  from the matched app dir's `node_modules`, falling back to the project-root
-  `node_modules` (pnpm hoist / flat layouts).
-- **Type-check gate** — `POST_EDIT_VERIFY_TSC=1` also runs a project
-  `tsc --noEmit` after a clean lint (opt-in: whole-project, so slower).
+- **App dir(s) — applies only if the lint hook is re-wired.** 0.3.0 dropped
+  PostToolUse from the shipped `hooks.json`, so `POST_EDIT_VERIFY_APP_DIR` has no
+  effect on a plugin install. It still governs `post-edit-verify.mjs` for a
+  project that wires that script itself (§1B copy-install): set it to your source
+  root (`.` for a non-monorepo) or a comma-separated list for several
+  apps/packages. The eslint/tsc binary resolves from the matched app dir's
+  `node_modules`, falling back to the project-root `node_modules` (pnpm hoist /
+  flat layouts).
+- **Type-check gate — same condition.** `POST_EDIT_VERIFY_TSC=1` also runs a
+  project `tsc --noEmit` after a clean lint (opt-in: whole-project, so slower).
+  Inert unless the PostToolUse hook is re-wired.
 - **Contracts lock — retired in 0.3.0.** Through 0.2.x, `contracts/` writes
   were denied by default (PreToolUse `contracts-guard`, G1 + the G3 shell-write
   heuristic: `echo > contracts/…`, `tee`, in-place `sed`, PS `Set-Content`).
@@ -53,8 +57,11 @@ Genericized so a fresh install needs **no source edits**, only configuration:
   reset, SQL DROP/TRUNCATE, `rm -rf` / `Remove-Item -Recurse -Force` on a root,
   `git push --force`) is denied; set `HARNESS_DISABLE_DESTRUCTIVE_GUARD=1` to
   disable for a step.
-- **Phase-gate at Stop** — advisory by default; `HARNESS_PHASE_GATE_BLOCK=1` makes
-  it block stopping while an in-progress phase's codex gate hasn't run.
+- **Phase-gate at Stop — unwired in 0.3.0.** The Stop hook is no longer in the
+  shipped `hooks.json`, so `HARNESS_PHASE_GATE_BLOCK=1` does nothing on a plugin
+  install. `phase-gate-check.mjs` still ships: re-wire it yourself and the env var
+  again makes it block stopping while an in-progress phase's codex gate hasn't run
+  (advisory otherwise).
 - **Session label** — set env `SESSION_CONTEXT_LABEL` to your project name
   (default `[harness session context]`).
 - **Agent skills** — add per-project `<domain>` / E2E skills to the shells'
