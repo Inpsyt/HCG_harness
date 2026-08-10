@@ -15,9 +15,11 @@ description: 레거시 하네스를 hcg-core 로 이행 (철거 → 정합화 �
      (project.md 정합화)부터는 더 이상 읽을 수 없다.
    - **있음 + `.claude/.hcg-core.json` 도 있음** → `/hcg-core:init` 을 레거시 프로젝트 위에 먼저
      실행한 경우다. **철거하지 않는다.** 철거 판정(2단계)은 레거시 자신의 이전 상태(마커의
-     매니페스트)와 디스크를 비교하므로, hcg-core 가 이미 덮어쓴 동일 경로 파일(`CLAUDE.md`·
-     `.claude/settings.json` 등)을 "레거시 사용자 수정"으로 오인해 `.legacy` 로 백업하거나 지울
-     수 있다 — hcg-core 가 쓴 내용을 파괴한다. 대신:
+     매니페스트)와 디스크를 비교하므로, hcg-core 가 쓴 파일(`.github/workflows/ci.yml` 처럼
+     레거시 매니페스트에 없는 것 포함)을 "레거시 사용자 수정"으로 오인해 `.legacy` 로 백업하거나
+     지울 수 있다 — hcg-core 가 쓴 내용을 파괴한다. **엔진도 이를 거부한다**
+     (`--mode retire` 가 `.claude/.hcg-core.json` 을 감지하면 `coreMarkerPresent:true` 로 실패하고
+     디스크를 건드리지 않는다) — 실수로 2단계를 실행해도 안전하지만, 절차는 그대로 아래를 따른다:
      1. 사용자에게 상태("hcg-core 가 이미 초기화됨 — 레거시 잔재만 정리")를 보고한다.
      2. 레거시 마커 `.claude/.hcg-harness.json` 삭제에 동의를 받은 뒤 삭제한다(레거시 파일 자체는
         건드리지 않는다 — 남은 `CLAUDE.md`·`.claude/agents/*`·`tasks/**`·`scripts/codex-review.mjs`
@@ -30,8 +32,8 @@ description: 레거시 하네스를 hcg-core 로 이행 (철거 → 정합화 �
         --gap-fill` 은 **이미 있는 파일을 건너뛰는 그 성질 그대로** `.claude/CLAUDE-core.md` 를
         레거시 본인 채 남겨둔다 — 방치하면 7단계 단언 5번("`.claude/CLAUDE-core.md` 가 hcg-core
         슬림본")이 실패하고, 프로젝트는 레거시 파이프라인 방법론을 계속 따르게 된다(실측 확인:
-        레거시 본 11,928바이트 vs hcg-core 슬림본 3,467바이트). `.claude/CLAUDE-core.md` 를 확인해
-        레거시 본(~11.9KB, 역할 파이프라인 서술)이면 — hcg-core 슬림본은 ~3.5KB, Operating Rules
+        레거시 본 11,928바이트 vs hcg-core 슬림본 4,301바이트). `.claude/CLAUDE-core.md` 를 확인해
+        레거시 본(~11.9KB, 역할 파이프라인 서술)이면 — hcg-core 슬림본은 ~4.3KB, Operating Rules
         §0~§5 + 작업 라우팅 표 — 다음을 수행한다:
         1. **먼저 백업한다**: `.claude/CLAUDE-core.md` → `.claude/CLAUDE-core.md.legacy`. `CLAUDE.md`
            도 여전히 레거시 import 구조(`## 공통 방법론 (HARNESS)` → `@.claude/CLAUDE-core.md` 및
@@ -90,7 +92,9 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.mjs" --mode retire --profile hcg -
 
 - `ok:true` → `plan.deletes`(삭제) · `plan.backups`(`.legacy` 백업 후 삭제) · `plan.archives`
   (`docs/legacy-harness/` 로 이동) · `plan.keeps`(보존 + 검토 필요) · `plan.missing`(이미 없음) 을
-  사용자에게 그대로 보여주고 진행 여부를 확인받는다.
+  사용자에게 그대로 보여주고 진행 여부를 확인받는다. `plan.archives` 에는 구버전 upgrade 가 남긴
+  `<파일>.new` 충돌 잔재도 포함된다(삭제하지 않고 아카이브로 회수한다. 방치하면 죽은
+  레거시 정의가 이행 후에도 프로젝트에 남는다).
 - `ok:false, incomplete:true` → 목적지 충돌이 있으면 dry-run 도 이 형태로 실패한다 — **이때는
   `plan` 키가 없다. `plan.*` 를 읽으려 하지 말 것.** 대신 `report`·`unresolved` 를 그대로
   보여준다. `unresolved` 는 `plan.blocked` 를 그대로 실은 배열로, 각 항목은
@@ -227,8 +231,10 @@ hcg-core 도 있음"(둘 다 있음) 경로로 들어왔다면 2·3번은 철거
    구 프로젝트는 5종이 `.legacy` 로 백업된 채 남을 수 있다 — `*.md` 원본이 없으면 통과이고,
    `*.md.legacy` 잔존은 실패가 아니라 아래 사용자 검토 목록 항목이다.
 3. `tasks/phase-meta.yml` 없음 · `tasks/TODO.md` 없음 · `scripts/codex-review.mjs` 없음 ·
-   `contracts/shared-types.md` 없음. (디렉터리 `tasks/` 자체는 사용자 소유(`tasks/**`)라 다른 파일이
-   남아 있을 수 있다 — 디렉터리 존재는 실패로 보지 않고, 남은 파일이 있으면 검토 목록에 싣는다.)
+   `contracts/shared-types.md` 없음 · **철거 대상 경로의 `<파일>.new` 잔재 없음**(2단계가
+   아카이브로 회수했어야 한다 — 남아 있으면 죽은 레거시 정의가 그대로 노출된다). (디렉터리
+   `tasks/` 자체는 사용자 소유(`tasks/**`)라 다른 파일이 남아 있을 수 있다 — 디렉터리 존재는
+   실패로 보지 않고, 남은 파일이 있으면 검토 목록에 싣는다.)
 4. `.github/workflows/ci.yml` — **앱 골격이 있으면** 존재를 확인한다(6단계가 재생성했어야 한다).
    **앱 골격이 없으면**(6단계에서 `--no-app`) 이 파일은 재생성되지 않는 **알려진 공백**이다 — 6단계
    에서 이미 사전 고지했으므로 실패로 처리하지 않고 아래 사용자 검토 목록에 싣는다.
@@ -236,8 +242,12 @@ hcg-core 도 있음"(둘 다 있음) 경로로 들어왔다면 2·3번은 철거
 6. `.claude/.hcg-harness.json` 없음 · `.claude/.hcg-core.json` 있음
 7. `.claude/project.md` 에 죽은 섹션 3종 없음 + `## UI 표준` 있음
 
-이어서 **사용자 검토 목록**을 보고한다: `.legacy`/`.new` 백업(병합 후 삭제, 자동 병합 금지) ·
-`docs/legacy-harness/` 아카이브(보관 여부는 사용자 판단) · `plan.keeps` 항목 ·
+이어서 **사용자 검토 목록**을 보고한다: `.legacy` 백업(병합 후 삭제, 자동 병합 금지) ·
+`docs/legacy-harness/` 아카이브(보관 여부는 사용자 판단 — 회수된 `<파일>.new` 도 여기 있다) ·
+`plan.keeps` 항목(**각 항목의 내용을 직접 열어본다** — `keeps` 는 "마커와 내용이 다르다"만 뜻하며,
+사용자 수정본일 수도 있고 구버전 upgrade 가 남긴 매니페스트 드리프트일 수도 있다. 손대지 않은
+부트스트랩 스텁이면 삭제한 뒤 `/hcg-core:init --gap-fill` 을 다시 돌려 hcg-core 본으로 채운다 —
+방치하면 죽은 에이전트 이름·옛 패키지 매니저를 가리키는 레거시 스텁이 그대로 남는다) ·
 `.claude/skills/<slug>-domain/SKILL.md` 의 에이전트 이름 참조 · `contracts/shared-types` 이관 여부
 (5단계) · 앱 골격 없음 경로의 `ci.yml` 공백(위 4번 항목).
 

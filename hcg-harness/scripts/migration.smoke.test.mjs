@@ -123,3 +123,68 @@ test("사용자 수정본이 있는 프로젝트도 백업·보존이 성립하�
     if (fresh) rmSync(fresh, { recursive: true, force: true });
   }
 });
+
+// ── 구버전 실사용 패턴 회귀 ───────────────────────────────────────────
+// 구버전은 릴리스마다 `/hcg-harness:upgrade` 재동기화를 권장했다. 관리 파일을 고친 프로젝트는
+// 그때마다 `<파일>.new` 를 얻었고, 실측에서 그 잔재가 이행 후에도 고아로 남았다.
+
+function legacyUpgrade(dir) {
+  assert.equal(legacyMain(
+    ["--mode", "upgrade", "--profile", "hcg",
+     "--profiles-dir", LEGACY_PROFILES, "--target", dir], QUIET), 0, "레거시 upgrade");
+}
+
+test("릴리스마다 upgrade 를 돌린(=`.new` 가 쌓인) 프로젝트도 이행 후 고아가 0 이다", () => {
+  const migrated = mkdtempSync(path.join(tmpdir(), "hcg-migrated-new-"));
+  let fresh;
+  try {
+    fresh = mkdtempSync(path.join(tmpdir(), "hcg-fresh-new-"));
+
+    legacyInit(migrated);
+    // 관리 파일 2종을 팀이 고친 상태에서 재동기화 → `.new` 충돌 잔재
+    writeFileSync(path.join(migrated, "CLAUDE.md"), "팀이 고친 CLAUDE\n", "utf8");
+    writeFileSync(path.join(migrated, ".claude", "agents", "qa-agent.md"), "팀 커스텀 qa\n", "utf8");
+    legacyUpgrade(migrated);
+    assert.ok(existsSync(path.join(migrated, "CLAUDE.md.new")), "전제: `.new` 잔재가 생겼다");
+
+    legacyRetire(migrated);
+    coreInit(migrated, true);
+    coreInit(fresh, false);
+
+    const { A, missing, orphans } = orphanReport(migrated, fresh);
+    assert.deepEqual(missing, [], `이행본에 없는 파일: ${missing.join(", ")}`);
+    assert.deepEqual(orphans, [], `이행 후 남은 고아: ${orphans.join(", ")}`);
+    // 잔재는 지워진 게 아니라 아카이브로 보존된다 — 병합 중이었을 수 있다
+    assert.ok(A.has("docs/legacy-harness/CLAUDE.md.new"), "`.new` 내용은 아카이브에 보존");
+    assert.ok(A.has("docs/legacy-harness/.claude/agents/qa-agent.md.new"));
+    // 사용자 수정 원본은 `.legacy` 백업으로 남는다
+    assert.equal(readFileSync(path.join(migrated, "CLAUDE.md.legacy"), "utf8"), "팀이 고친 CLAUDE\n");
+  } finally {
+    rmSync(migrated, { recursive: true, force: true });
+    if (fresh) rmSync(fresh, { recursive: true, force: true });
+  }
+});
+
+test("hcg-core init 을 레거시 위에 먼저 돌린 프로젝트는 철거가 거부된다 (hcg-core 산출물 보호)", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "hcg-both-markers-"));
+  try {
+    legacyInit(dir);
+    coreInit(dir, true); // upgrade.md §0 이 금지하는 순서 — 두 마커 공존
+    assert.ok(existsSync(path.join(dir, ".claude", ".hcg-harness.json")));
+    assert.ok(existsSync(path.join(dir, ".claude", ".hcg-core.json")));
+    // gap-fill 이 새로 만든 hcg-core 산출물 — 레거시 매니페스트에 없어 "사용자 수정본"으로
+    // 오인되던 파일이다.
+    const coreWritten = path.join(dir, "contracts", "shared-types.ts");
+    assert.ok(existsSync(coreWritten), "전제: hcg-core 가 새 파일을 썼다");
+
+    const out = [];
+    const code = legacyMain(
+      ["--mode", "retire", "--profile", "hcg", "--profiles-dir", LEGACY_PROFILES, "--target", dir],
+      { log: (s) => out.push(s), now: NOW });
+    assert.equal(code, 1, "공존 상태에서는 철거하지 않는다");
+    assert.equal(JSON.parse(out[out.length - 1]).coreMarkerPresent, true);
+    assert.ok(existsSync(coreWritten), "hcg-core 가 쓴 파일이 살아있다");
+    assert.ok(!existsSync(path.join(dir, "contracts", "shared-types.ts.legacy")), "백업 후 삭제도 없었다");
+    assert.ok(existsSync(path.join(dir, "CLAUDE.md")), "레거시 파일도 그대로 — 반쪽 상태를 만들지 않는다");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

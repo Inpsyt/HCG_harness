@@ -309,7 +309,13 @@ export function planRetire({ retire = {}, prevManifest = {}, currentHashes = {},
   for (const rel of retire.replaceIfPristine || []) {
     if (!onDisk(rel)) { missing.push(rel); continue; }
     if (!pristine(rel)) {
-      keeps.push({ relPath: rel, reason: "사용자 수정본 — 원 위치 보존. 죽은 에이전트 참조 검토 필요" });
+      // 왜 "사용자 수정본"이라 단정하지 않는가: 마커를 **구버전 엔진(0.2.x 이하)이 썼다면** 이 불일치가
+      // 사용자 편집이 아니라 매니페스트 드리프트일 수 있다. 그 엔진들은 upgrade 가 일부러 쓰지
+      // 않은 user-owned 파일까지 새 템플릿 해시로 적었기 때문에, 손대지 않은 부트스트랩 스텁도
+      // 여기로 떨어진다(실측: 0.1.1 → 0.2.2 재동기화를 거친 프로젝트의 playwright-e2e 스킬).
+      // finalizeManifest 는 새 오염을 막지만 **이미 쓰인 마커는 되돌리지 못한다** —
+      // 그래서 판정을 단정하는 대신 두 가능성을 그대로 보고하고 사람이 확인하게 한다.
+      keeps.push({ relPath: rel, reason: "마커와 내용 불일치 — 사용자 수정본이거나 구버전 upgrade 의 매니페스트 드리프트. 원 위치 보존. 내용을 확인해 손대지 않은 레거시 스텁이면 삭제 후 gap-fill 재실행, 실제 작업물이면 죽은 에이전트 참조 검토" });
       continue;
     }
     const destPath = dest(rel);

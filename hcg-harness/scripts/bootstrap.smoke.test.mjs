@@ -267,3 +267,88 @@ test("retire: 철거 도중 fs 오류(EPERM 등)가 나면 그때까지 처리�
       "마커는 유지되어 재실행으로 이어서 처리할 수 있다");
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+// ── hcg-core 마커 공존 시 철거 fail-closed ────────────────────────────
+// 철거 판정은 레거시 마커의 매니페스트와 디스크를 비교한다. hcg-core 가 이미 쓴 파일은 그
+// 매니페스트에 없으므로 "사용자 수정본"으로 오인되어 `.legacy` 백업 후 삭제된다 — 실측에서
+// hcg-core 가 방금 만든 `.github/workflows/ci.yml` 이 그 경로로 사라질 계획이 나왔다.
+// upgrade.md §0 이 산문으로 금지하던 것을 엔진이 직접 막는다.
+
+test("retire: hcg-core 마커가 있으면 철거를 거부한다 (디스크·마커 무변경)", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "hcg-retire-coremarker-"));
+  try {
+    initLegacy(dir);
+    writeFileSync(path.join(dir, ".claude", ".hcg-core.json"),
+      JSON.stringify({ profile: "hcg", harnessVersion: "0.1.1", manifest: {} }), "utf8");
+
+    const { code, json } = runRetire(dir);
+    assert.equal(code, 1, "공존 상태에서는 비-0 (fail-closed)");
+    assert.equal(json.ok, false);
+    assert.equal(json.coreMarkerPresent, true);
+    assert.match(json.error, /hcg-core 마커/);
+    // 아무것도 지워지지 않았다
+    assert.ok(existsSync(path.join(dir, "CLAUDE.md")));
+    assert.ok(existsSync(path.join(dir, ".claude", "agents", "plan-agent.md")));
+    assert.ok(existsSync(path.join(dir, "tasks", "TODO.md")));
+    assert.ok(existsSync(path.join(dir, ".claude", ".hcg-harness.json")), "레거시 마커도 그대로");
+    assert.ok(existsSync(path.join(dir, ".claude", ".hcg-core.json")), "hcg-core 마커도 그대로");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("retire --dry-run 도 hcg-core 마커 공존이면 계획을 내놓지 않는다", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "hcg-retire-coremarker-dry-"));
+  try {
+    initLegacy(dir);
+    writeFileSync(path.join(dir, ".claude", ".hcg-core.json"), "{}", "utf8");
+    const { code, json } = runRetire(dir, ["--dry-run"]);
+    assert.equal(code, 1);
+    assert.equal(json.ok, false);
+    assert.equal(json.plan, undefined, "금지된 상태에서 계획을 보여주면 사용자가 그대로 진행한다");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+// ── 구버전 upgrade 잔재(`<파일>.new`) 회수 ────────────────────────────
+
+test("retire: upgrade 가 남긴 `.new` 잔재를 아카이브로 회수한다 (프로젝트에 남기지 않음)", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "hcg-retire-newresidue-"));
+  try {
+    initLegacy(dir);
+    // 구버전 사용 패턴: 관리 파일을 고친 상태에서 릴리스마다 upgrade 재동기화 → `.new` 충돌
+    writeFileSync(path.join(dir, "CLAUDE.md"), "USER EDIT\n", "utf8");
+    writeFileSync(path.join(dir, ".claude", "agents", "qa-agent.md"), "팀 커스텀 qa\n", "utf8");
+    const upCode = main(
+      ["--mode", "upgrade", "--profile", "hcg", "--profiles-dir", PROFILES, "--target", dir],
+      { log: () => {}, now: () => "2026-01-02T00:00:00Z" }
+    );
+    assert.equal(upCode, 0);
+    assert.ok(existsSync(path.join(dir, "CLAUDE.md.new")), "전제: upgrade 가 .new 를 남긴다");
+    assert.ok(existsSync(path.join(dir, ".claude", "agents", "qa-agent.md.new")));
+
+    const { code, json } = runRetire(dir);
+    assert.equal(code, 0);
+    assert.equal(json.ok, true);
+
+    // 프로젝트에는 `.new` 가 남지 않는다
+    assert.ok(!existsSync(path.join(dir, "CLAUDE.md.new")));
+    assert.ok(!existsSync(path.join(dir, ".claude", "agents", "qa-agent.md.new")));
+    // 내용은 아카이브에 보존된다 (병합 중이었을 수 있으므로 삭제하지 않는다)
+    assert.ok(existsSync(path.join(dir, "docs", "legacy-harness", "CLAUDE.md.new")));
+    assert.ok(existsSync(path.join(dir, "docs", "legacy-harness", ".claude", "agents", "qa-agent.md.new")));
+    assert.ok(json.report.archived.includes("docs/legacy-harness/CLAUDE.md.new"), "리포트에도 실린다");
+    // 사용자 수정 원본은 여전히 `.legacy` 로 백업된다
+    assert.equal(readFileSync(path.join(dir, "CLAUDE.md.legacy"), "utf8"), "USER EDIT\n");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("retire: 사용자 소유 경로의 `.new` 는 건드리지 않는다 (불가침)", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "hcg-retire-newuser-"));
+  try {
+    initLegacy(dir);
+    const userNew = path.join(dir, "apps", "web", "app", "page.tsx.new");
+    writeFileSync(userNew, "사용자가 직접 만든 .new\n", "utf8");
+    const { code } = runRetire(dir);
+    assert.equal(code, 0);
+    assert.equal(readFileSync(userNew, "utf8"), "사용자가 직접 만든 .new\n",
+      "철거 목록 밖 경로의 .new 는 이동 대상이 아니다");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

@@ -778,7 +778,7 @@ test("planRetire: 목록에 없는 파일은 어떤 버킷에도 나타나지 �
   assert.ok(!touched.includes("README.md"));
 });
 
-// ── 0.3.1: blocked 버킷(목적지 충돌 사전 판정) 단위 커버리지 ─────────────────
+// ── blocked 버킷(목적지 충돌 사전 판정) 단위 커버리지 ─────────────────
 // 철거는 all-or-nothing 이다 — 목적지가 이미 점유된 항목은 실행 버킷(backups/archives)에서
 // 빠지고 blocked 로만 보고되어야 한다. 이 판정이 무너지면 dry-run 이 통과시킨 계획이
 // 실제 실행 중간에 멈춰 프로젝트가 반쯤 뜯긴 채 남는다.
@@ -919,4 +919,177 @@ test("retiredFiles 버킷은 managed/user-owned 파티션과 일치한다 (파�
   for (const rel of [...r.archive, ...r.replaceIfPristine]) {
     assert.equal(byPath.get(rel).managed, false, `archive 계열은 user-owned 여야 한다: ${rel}`);
   }
+});
+
+// ── finalizeManifest — 마커는 "하네스가 마지막으로 쓴 것"을 기록한다 ────
+//
+// 왜 필요한가 (2026-08-10 실측): buildManifest 는 렌더 결과를 그대로 적기 때문에, upgrade 가
+// **일부러 쓰지 않은** 파일(user-owned 스킵 · `.new` 충돌)까지 새 템플릿 해시로 덮어썼다.
+// 그러면 마커가 디스크와 어긋나고, 그 어긋남이 이후 planRetire 의 pristine 판정을 뒤집어
+// 손대지 않은 파일을 "사용자 수정본"으로 오분류한다 — 구버전(0.1.1) → 0.2.2 upgrade 를 거친
+// 프로젝트에서 아무도 건드리지 않은 playwright-e2e 스킬이 keeps 로 빠져, 죽은 레거시 스킬이
+// 이행 후에도 프로젝트에 남았다.
+
+import { finalizeManifest } from "./bootstrap.mjs";
+
+test("finalizeManifest: 이번 실행이 실제로 쓴 파일은 템플릿 해시로 기록한다", () => {
+  const rendered = [{ relPath: "x.md", content: "v2", managed: true }];
+  const m = finalizeManifest({ rendered, writtenPaths: new Set(["x.md"]) });
+  assert.deepEqual(m, { "x.md": { managed: true, sha256: sha256("v2") } });
+});
+
+test("finalizeManifest: 쓰지 않았어도 디스크가 이미 템플릿과 같으면 템플릿 해시다", () => {
+  const rendered = [{ relPath: "x.md", content: "same", managed: true }];
+  const m = finalizeManifest({
+    rendered, writtenPaths: new Set(),
+    prevManifest: { "x.md": { managed: true, sha256: sha256("old") } },
+    currentHashes: { "x.md": sha256("same") },
+  });
+  assert.equal(m["x.md"].sha256, sha256("same"));
+});
+
+test("finalizeManifest: 쓰지 않은 파일은 이전 매니페스트 값을 이월한다", () => {
+  const rel = ".claude/skills/playwright-e2e/SKILL.md";
+  const rendered = [{ relPath: rel, content: "STUB v2", managed: false }];
+  const m = finalizeManifest({
+    rendered, writtenPaths: new Set(), // user-owned → upgrade 가 건너뜀
+    prevManifest: { [rel]: { managed: false, sha256: sha256("STUB v1") } },
+    currentHashes: { [rel]: sha256("STUB v1") },
+  });
+  assert.equal(m[rel].sha256, sha256("STUB v1"),
+    "엔진이 쓰지 않았는데 새 템플릿 해시를 적으면 마커가 디스크를 오해한다");
+});
+
+test("finalizeManifest: 쓴 적도 없고 이전 기록도 없으면 항목을 만들지 않는다 (fail-safe)", () => {
+  const rendered = [{ relPath: "u.md", content: "tpl", managed: false }];
+  const m = finalizeManifest({
+    rendered, writtenPaths: new Set(), prevManifest: {}, currentHashes: { "u.md": sha256("사용자가-먼저-만든-파일") },
+  });
+  assert.deepEqual(m, {}, "하네스가 쓴 적 없는 파일에 대해 아무 주장도 하지 않는다");
+});
+
+test("finalizeManifest→planRetire 회귀: 손대지 않은 user-owned 스킬은 keeps 가 아니라 아카이브다", () => {
+  const rel = ".claude/skills/playwright-e2e/SKILL.md";
+  const v1 = "STUB v1", v2 = "STUB v2";
+  // ① init: 엔진이 v1 을 실제로 썼다
+  const afterInit = finalizeManifest({
+    rendered: [{ relPath: rel, content: v1, managed: false }], writtenPaths: new Set([rel]),
+  });
+  // ② upgrade: 템플릿이 v2 로 바뀌었지만 user-owned 라 엔진은 쓰지 않는다(디스크는 v1 그대로)
+  const afterUpgrade = finalizeManifest({
+    rendered: [{ relPath: rel, content: v2, managed: false }], writtenPaths: new Set(),
+    prevManifest: afterInit, currentHashes: { [rel]: sha256(v1) },
+  });
+  // ③ 철거: 사용자가 손댄 적 없으므로 아카이브(교체 허용)여야 한다
+  const plan = planRetire({
+    retire: { replaceIfPristine: [rel] }, prevManifest: afterUpgrade, currentHashes: { [rel]: sha256(v1) },
+  });
+  assert.deepEqual(plan.keeps, [], "손대지 않은 파일이 '사용자 수정본'으로 새면 안 된다");
+  assert.deepEqual(plan.archives, [{ relPath: rel, destPath: `${ARCHIVE_ROOT}/${rel}` }]);
+
+  // 대조군 — 옛 동작(buildManifest)이었다면 바로 이 자리에서 keeps 로 샜다
+  const legacyBehaviour = planRetire({
+    retire: { replaceIfPristine: [rel] },
+    prevManifest: buildManifest([{ relPath: rel, content: v2, managed: false }]),
+    currentHashes: { [rel]: sha256(v1) },
+  });
+  assert.equal(legacyBehaviour.keeps.length, 1, "회귀 대조군: 옛 동작은 오분류했다");
+});
+
+test("finalizeManifest: `.new` 충돌 파일은 디스크 해시를 적지 않는다 (백업 없는 삭제 방지)", () => {
+  const rel = "CLAUDE.md";
+  const m = finalizeManifest({
+    rendered: [{ relPath: rel, content: "v2", managed: true }],
+    writtenPaths: new Set([`${rel}.new`]), // 원본이 아니라 .new 를 썼다
+    prevManifest: { [rel]: { managed: true, sha256: sha256("v1") } },
+    currentHashes: { [rel]: sha256("USER EDIT") },
+  });
+  assert.equal(m[rel].sha256, sha256("v1"));
+  const plan = planRetire({
+    retire: { delete: [rel] }, prevManifest: m, currentHashes: { [rel]: sha256("USER EDIT") },
+  });
+  assert.deepEqual(plan.backups, [{ relPath: rel, backupPath: "CLAUDE.md.legacy" }],
+    "사용자 수정본은 반드시 .legacy 백업을 거쳐 삭제되어야 한다");
+  assert.deepEqual(plan.deletes, []);
+});
+
+// ── `<파일>.new` 잔재 회수 ────────────────────────────────────────────
+// 구버전은 릴리스마다 `/hcg-harness:upgrade` 재동기화를 권했고, 사용자가 고친 managed 파일은
+// 그때마다 `<파일>.new` 를 남겼다. 이행이 이를 훑지 않으면 죽은 레거시 정의(5-에이전트 셸 등)가
+// 그대로 프로젝트에 남는다 — 실측에서 CLAUDE.md.new · qa-agent.md.new 가 고아로 잔존했다.
+
+test("planRetire: `<파일>.new` 잔재는 아카이브로 회수한다 (삭제하지 않음)", () => {
+  const out = planRetire({
+    retire: { delete: ["CLAUDE.md"], archive: [], replaceIfPristine: [] },
+    prevManifest: { "CLAUDE.md": { managed: true, sha256: "aaa" } },
+    currentHashes: { "CLAUDE.md": "aaa" },
+    newFiles: new Set(["CLAUDE.md.new"]),
+  });
+  assert.deepEqual(out.deletes, ["CLAUDE.md"]);
+  assert.deepEqual(out.archives, [
+    { relPath: "CLAUDE.md.new", destPath: `${ARCHIVE_ROOT}/CLAUDE.md.new` },
+  ]);
+});
+
+test("planRetire: 원본이 이미 없어도(missing) `.new` 잔재는 회수한다", () => {
+  const out = planRetire({
+    retire: { delete: ["CLAUDE.md"], archive: [], replaceIfPristine: [] },
+    prevManifest: {}, currentHashes: {},                 // 원본은 디스크에 없음
+    newFiles: new Set(["CLAUDE.md.new"]),
+  });
+  assert.deepEqual(out.missing, ["CLAUDE.md"]);
+  assert.deepEqual(out.archives, [
+    { relPath: "CLAUDE.md.new", destPath: `${ARCHIVE_ROOT}/CLAUDE.md.new` },
+  ]);
+});
+
+test("planRetire: `.new` 아카이브 목적지가 점유되어 있으면 blocked 로 간다", () => {
+  const out = planRetire({
+    retire: { delete: ["CLAUDE.md"], archive: [], replaceIfPristine: [] },
+    prevManifest: { "CLAUDE.md": { managed: true, sha256: "aaa" } },
+    currentHashes: { "CLAUDE.md": "aaa" },
+    newFiles: new Set(["CLAUDE.md.new"]),
+    existingDests: new Set([`${ARCHIVE_ROOT}/CLAUDE.md.new`]),
+  });
+  assert.deepEqual(out.archives, []);
+  assert.deepEqual(out.blocked, [
+    { relPath: "CLAUDE.md.new", destPath: `${ARCHIVE_ROOT}/CLAUDE.md.new`, kind: "archive" },
+  ]);
+});
+
+test("planRetire: newFiles 를 주지 않으면 `.new` 관련 동작이 전혀 없다 (기본 경로 회귀)", () => {
+  const out = planRetire({
+    retire: RETIRE_FIXTURE,
+    prevManifest: { "CLAUDE.md": { managed: true, sha256: "aaa" } },
+    currentHashes: { "CLAUDE.md": "aaa", "tasks/TODO.md": "x" },
+  });
+  assert.ok(!out.archives.some((a) => a.relPath.endsWith(".new")));
+  assert.deepEqual(out.blocked, []);
+});
+
+test("planRetire: 선언 목록 밖 파일의 `.new` 는 건드리지 않는다 (불가침)", () => {
+  const out = planRetire({
+    retire: { delete: ["CLAUDE.md"], archive: [], replaceIfPristine: [] },
+    prevManifest: { "CLAUDE.md": { managed: true, sha256: "aaa" } },
+    currentHashes: { "CLAUDE.md": "aaa" },
+    newFiles: new Set(["CLAUDE.md.new", "src/user-file.ts.new"]),
+  });
+  const touched = out.archives.map((a) => a.relPath);
+  assert.ok(touched.includes("CLAUDE.md.new"));
+  assert.ok(!touched.includes("src/user-file.ts.new"));
+});
+
+test("planRetire: keeps 사유는 '사용자 수정본'으로 단정하지 않는다 (구버전 마커 드리프트 가능성)", () => {
+  // 구버전 엔진(0.2.x 이하)이 쓴 마커에서는 이 불일치가 사용자 편집이 아니라 매니페스트 드리프트일 수
+  // 있다. 사유가 단정하면 사용자는 손대지 않은 레거시 스텁을 자기 작업물로 알고 그대로 둔다.
+  const rel = ".claude/skills/playwright-e2e/SKILL.md";
+  const out = planRetire({
+    retire: { replaceIfPristine: [rel] },
+    prevManifest: { [rel]: { managed: false, sha256: "aaa" } },
+    currentHashes: { [rel]: "bbb" },
+  });
+  assert.equal(out.keeps.length, 1);
+  assert.match(out.keeps[0].reason, /드리프트/, "두 번째 가능성(구버전 마커 드리프트)을 알려야 한다");
+  assert.match(out.keeps[0].reason, /검토|확인/, "사람이 확인할 행동을 지시해야 한다");
+  assert.ok(!/^사용자 수정본/.test(out.keeps[0].reason), "단정으로 시작하면 안 된다");
 });
