@@ -162,6 +162,35 @@ export function buildManifest(rendered) {
   return m;
 }
 
+/**
+ * 매니페스트는 "하네스가 그 경로에 **마지막으로 쓴 것**"을 기록해야 한다.
+ *
+ * buildManifest 는 렌더 결과(=템플릿)를 그대로 적으므로, 엔진이 **일부러 쓰지 않은**
+ * 파일(user-owned 스킵 · `.new` 충돌로 원본 보존 · gap-fill 스킵)까지 새 템플릿 해시로
+ * 덮어써 마커가 디스크와 어긋난다. 마커가 디스크를 오해하면 이후의 3-way 판정과
+ * (레거시 엔진의) 철거 pristine 판정이 손대지 않은 파일을 "사용자 수정본"으로 뒤집는다.
+ * 두 엔진은 같은 계보이므로 판정 규칙을 동일하게 유지한다.
+ *
+ * 규칙(우선순위): ① 이번 실행이 실제로 쓴 경로 → 템플릿 해시 · ② 디스크가 이미 템플릿과
+ * 동일 → 템플릿 해시 · ③ 이전 매니페스트에 있음 → 그 값 이월 · ④ 그 밖 → 항목 없음
+ * (하네스가 쓴 적 없으므로 아무 주장도 하지 않는다 — fail-safe).
+ */
+export function finalizeManifest({ rendered, writtenPaths = new Set(), prevManifest = {}, currentHashes = {} }) {
+  const out = {};
+  for (const f of rendered) {
+    const templateHash = sha256(f.content);
+    if (writtenPaths.has(f.relPath) || currentHashes[f.relPath] === templateHash) {
+      out[f.relPath] = { managed: f.managed, sha256: templateHash };
+      continue;
+    }
+    const prev = prevManifest[f.relPath];
+    if (prev && typeof prev.sha256 === "string") {
+      out[f.relPath] = { managed: f.managed, sha256: prev.sha256 };
+    }
+  }
+  return out;
+}
+
 /** 마커 읽기. 없거나 파싱 실패 시 null. */
 export function readMarker(targetDir, fs = NODE_FS) {
   const file = path.join(targetDir, MARKER_REL);
@@ -323,17 +352,24 @@ export function main(argv, deps = {}) {
       rendered = rendered.filter((f) => !f.relPath.startsWith(appPrefix) && !f.relPath.startsWith(".github/"));
     }
 
-    const existing = listExisting(args.target, rendered.map((f) => f.relPath), fs);
+    const relPaths = rendered.map((f) => f.relPath);
+    const existing = listExisting(args.target, relPaths, fs);
     const plan = planInit({ rendered, existing, mode: args.initMode });
     if (plan.blocked) {
       log(JSON.stringify({ ok: false, blocked: true, mode: "init", conflicts: plan.conflicts,
         hint: "비어있지 않은 폴더입니다. 기존 파일과 충돌합니다. --gap-fill(없는 것만) 또는 --force(덮어쓰기)로 다시 실행하세요." }));
       return 2;
     }
+    // 쓰기 **전** 디스크 상태 — gap-fill 이 건너뛴 파일까지 매니페스트가 사실대로 기록하도록.
+    const preHashes = hashExisting(args.target, relPaths, fs);
     applyWrites(args.target, plan.writes, fs);
     const marker = {
       profile: profile.id, profileVersion: profile.version || "0.0.0", harnessVersion: deps.harnessVersion || readOwnPluginVersion(fs) || "0.1.0",
-      bootstrappedAt: nowIso(deps), upgradedAt: null, choices, manifest: buildManifest(rendered),
+      bootstrappedAt: nowIso(deps), upgradedAt: null, choices,
+      manifest: finalizeManifest({
+        rendered, prevManifest: {}, currentHashes: preHashes,
+        writtenPaths: new Set(plan.writes.map((w) => w.relPath)),
+      }),
     };
     writeMarker(args.target, marker, fs);
     log(JSON.stringify({ ok: true, mode: "init",
@@ -360,7 +396,10 @@ export function main(argv, deps = {}) {
     applyWrites(args.target, plan.writes, fs);
     const marker = { ...prev, profileVersion: profile.version || prev.profileVersion,
       harnessVersion: deps.harnessVersion || readOwnPluginVersion(fs) || prev.harnessVersion, upgradedAt: nowIso(deps),
-      manifest: buildManifest(rendered) };
+      manifest: finalizeManifest({
+        rendered, prevManifest: prev.manifest || {}, currentHashes,
+        writtenPaths: new Set(plan.writes.map((w) => w.relPath)),
+      }) };
     writeMarker(args.target, marker, fs);
     log(JSON.stringify({ ok: true, mode: "upgrade",
       report: { overwritten: plan.overwritten, created: plan.created, conflicts: plan.conflicts, skipped: plan.skipped } }));

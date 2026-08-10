@@ -170,11 +170,47 @@ export function renderProfile({ templatesDir, profile, choices, fs = NODE_FS }) 
 /** 마커 파일의 POSIX 상대경로. */
 export const MARKER_REL = ".claude/.hcg-harness.json";
 
+/** hcg-core 마커의 POSIX 상대경로 — 철거 fail-closed 판정용(공존 금지). */
+export const CORE_MARKER_REL = ".claude/.hcg-core.json";
+
 /** 렌더 목록 → relPath: {managed, sha256(content)} 매니페스트. */
 export function buildManifest(rendered) {
   const m = {};
   for (const f of rendered) m[f.relPath] = { managed: f.managed, sha256: sha256(f.content) };
   return m;
+}
+
+/**
+ * 매니페스트는 "하네스가 그 경로에 **마지막으로 쓴 것**"을 기록해야 한다.
+ *
+ * buildManifest 는 렌더 결과(=템플릿)를 그대로 적는다. 그래서 엔진이 **일부러 쓰지 않은**
+ * 파일(user-owned 스킵 · `.new` 충돌로 원본 보존 · gap-fill 스킵)까지 새 템플릿 해시로
+ * 덮어써 마커가 디스크와 어긋난다. 그 어긋남은 나중에 planRetire 의 pristine 판정을 뒤집어
+ * **손대지 않은 파일을 "사용자 수정본"으로 오분류**한다 — 실측(0.1.1 → 0.2.2 upgrade)에서
+ * 아무도 건드리지 않은 `.claude/skills/playwright-e2e/SKILL.md` 가 keeps 로 빠져,
+ * 죽은 `front 에이전트`·`pnpm --filter` 를 가리키는 레거시 스킬이 이행 후에도 남았다.
+ *
+ * 규칙(우선순위):
+ *   1. 이번 실행이 실제로 쓴 경로  → 템플릿 해시 (하네스가 방금 쓴 것)
+ *   2. 디스크가 이미 템플릿과 동일 → 템플릿 해시 (내용상 하네스 산출물)
+ *   3. 이전 매니페스트에 있음      → 그 값을 그대로 이월 (하네스가 마지막으로 쓴 것)
+ *   4. 그 밖                       → **항목 없음** — 하네스가 쓴 적 없으므로 아무 주장도 하지
+ *      않는다. pristine 판정이 false 로 떨어져 보존 쪽(keeps/백업)으로 기운다(fail-safe).
+ */
+export function finalizeManifest({ rendered, writtenPaths = new Set(), prevManifest = {}, currentHashes = {} }) {
+  const out = {};
+  for (const f of rendered) {
+    const templateHash = sha256(f.content);
+    if (writtenPaths.has(f.relPath) || currentHashes[f.relPath] === templateHash) {
+      out[f.relPath] = { managed: f.managed, sha256: templateHash };
+      continue;
+    }
+    const prev = prevManifest[f.relPath];
+    if (prev && typeof prev.sha256 === "string") {
+      out[f.relPath] = { managed: f.managed, sha256: prev.sha256 };
+    }
+  }
+  return out;
 }
 
 /** 마커 읽기. 없거나 파싱 실패 시 null. */
@@ -242,8 +278,14 @@ export const ARCHIVE_ROOT = "docs/legacy-harness";
  * - replaceIfPristine(user-owned, 동일 경로 대응물 있음): 미수정 → 아카이브(교체 허용),
  *   사용자 수정 → 원 위치 보존 + 사유 보고
  * 세 목록에 없는 파일은 절대 나타나지 않는다(불가침).
+ *
+ * newFiles: 세 목록 항목의 `<파일>.new`(구버전 upgrade 충돌 잔재) 중 디스크에 실재하는 것.
+ *   `.new` 는 **레거시 템플릿 사본**이라 방치하면 이행 후에도 죽은 레거시 정의가 프로젝트에
+ *   남는다(실측: 릴리스마다 upgrade 를 돌린 프로젝트에서 `CLAUDE.md.new` ·
+ *   `.claude/agents/qa-agent.md.new` 가 고아로 잔존). 삭제하지 않고 아카이브로 회수한다 —
+ *   사용자가 병합 중이었을 수 있으므로 내용은 보존한다.
  */
-export function planRetire({ retire = {}, prevManifest = {}, currentHashes = {}, existingDests = new Set() }) {
+export function planRetire({ retire = {}, prevManifest = {}, currentHashes = {}, existingDests = new Set(), newFiles = new Set() }) {
   const deletes = [], backups = [], archives = [], keeps = [], missing = [], blocked = [];
   const onDisk = (rel) => Object.prototype.hasOwnProperty.call(currentHashes, rel);
   const pristine = (rel) => currentHashes[rel] === (prevManifest[rel] && prevManifest[rel].sha256);
@@ -273,6 +315,15 @@ export function planRetire({ retire = {}, prevManifest = {}, currentHashes = {},
     const destPath = dest(rel);
     if (taken(destPath)) blocked.push({ relPath: rel, destPath, kind: "archive" });
     else archives.push({ relPath: rel, destPath });
+  }
+  // `<파일>.new` 잔재 회수 — 원본이 이미 없어졌어도(missing) 잔재는 남을 수 있으므로
+  // onDisk 와 무관하게 세 목록 전체를 훑는다. missing 에는 싣지 않는다(선언된 철거 대상이 아님).
+  for (const rel of [...(retire.delete || []), ...(retire.archive || []), ...(retire.replaceIfPristine || [])]) {
+    const src = `${rel}.new`;
+    if (!newFiles.has(src)) continue;
+    const destPath = dest(src);
+    if (taken(destPath)) blocked.push({ relPath: src, destPath, kind: "archive" });
+    else archives.push({ relPath: src, destPath });
   }
   return { deletes, backups, archives, keeps, missing, blocked };
 }
@@ -462,17 +513,24 @@ export function main(argv, deps = {}) {
     try { rendered = renderProfile({ templatesDir, profile, choices, fs }); }
     catch (e) { log(JSON.stringify({ ok: false, error: `render failed: ${e.message}` })); return 1; }
 
-    const existing = listExisting(args.target, rendered.map((f) => f.relPath), fs);
+    const relPaths = rendered.map((f) => f.relPath);
+    const existing = listExisting(args.target, relPaths, fs);
     const plan = planInit({ rendered, existing, mode: args.initMode });
     if (plan.blocked) {
       log(JSON.stringify({ ok: false, blocked: true, mode: "init", conflicts: plan.conflicts,
         hint: "비어있지 않은 폴더입니다. 기존 파일과 충돌합니다. --gap-fill(없는 것만) 또는 --force(덮어쓰기)로 다시 실행하세요." }));
       return 2;
     }
+    // 쓰기 **전** 디스크 상태 — gap-fill 이 건너뛴 파일까지 매니페스트가 사실대로 기록하도록.
+    const preHashes = hashExisting(args.target, relPaths, fs);
     applyWrites(args.target, plan.writes, fs);
     const marker = {
       profile: profile.id, profileVersion: profile.version || "0.0.0", harnessVersion: deps.harnessVersion || readOwnPluginVersion(fs) || "0.3.0",
-      bootstrappedAt: nowIso(deps), upgradedAt: null, choices, manifest: buildManifest(rendered),
+      bootstrappedAt: nowIso(deps), upgradedAt: null, choices,
+      manifest: finalizeManifest({
+        rendered, prevManifest: {}, currentHashes: preHashes,
+        writtenPaths: new Set(plan.writes.map((w) => w.relPath)),
+      }),
     };
     writeMarker(args.target, marker, fs);
     log(JSON.stringify({ ok: true, mode: "init",
@@ -494,7 +552,10 @@ export function main(argv, deps = {}) {
     applyWrites(args.target, plan.writes, fs);
     const marker = { ...prev, profileVersion: profile.version || prev.profileVersion,
       harnessVersion: deps.harnessVersion || readOwnPluginVersion(fs) || prev.harnessVersion, upgradedAt: nowIso(deps),
-      manifest: buildManifest(rendered) };
+      manifest: finalizeManifest({
+        rendered, prevManifest: prev.manifest || {}, currentHashes,
+        writtenPaths: new Set(plan.writes.map((w) => w.relPath)),
+      }) };
     writeMarker(args.target, marker, fs);
     log(JSON.stringify({ ok: true, mode: "upgrade",
       report: { overwritten: plan.overwritten, created: plan.created, conflicts: plan.conflicts, skipped: plan.skipped } }));
@@ -507,6 +568,18 @@ export function main(argv, deps = {}) {
       log(JSON.stringify({ ok: false, error: "레거시 마커가 없습니다(.claude/.hcg-harness.json). 이미 이행되었거나 레거시 하네스 프로젝트가 아닙니다." }));
       return 1;
     }
+    // fail-closed: hcg-core 마커가 이미 있으면 철거하지 않는다. 철거 판정은 레거시 마커의
+    // 매니페스트와 디스크를 비교하는데, hcg-core 가 쓴 파일은 그 매니페스트에 없어
+    // "사용자 수정본"으로 오인된다 — 실측에서 hcg-core 가 방금 만든 `.github/workflows/ci.yml`
+    // 을 `.legacy` 로 백업한 뒤 삭제하는 계획이 나왔다. 문서 지침만으로 막지 않는다.
+    if (fs.existsSync(path.join(args.target, CORE_MARKER_REL))) {
+      log(JSON.stringify({ ok: false, mode: "retire", coreMarkerPresent: true,
+        error: "hcg-core 마커(.claude/.hcg-core.json)가 이미 있는 프로젝트입니다 — 이 상태에서 철거하면 " +
+          "hcg-core 가 쓴 파일을 레거시 사용자 수정본으로 오인해 백업·삭제합니다. 철거하지 말고 " +
+          "/hcg-harness:upgrade 0단계의 '둘 다 있음' 분기(레거시 마커 삭제 · enabledPlugins 기록 · " +
+          "CLAUDE-core 교체)를 따르세요." }));
+      return 1;
+    }
     const retire = profile.retiredFiles || {};
     const all = [...(retire.delete || []), ...(retire.archive || []), ...(retire.replaceIfPristine || [])];
     if (!all.length) {
@@ -514,13 +587,15 @@ export function main(argv, deps = {}) {
       return 1;
     }
     const currentHashes = hashExisting(args.target, all, fs);
-    const probe = planRetire({ retire, prevManifest: prev.manifest || {}, currentHashes });
+    // 구버전 upgrade 가 남긴 `<파일>.new` 충돌 잔재도 함께 회수한다.
+    const newFiles = listExisting(args.target, all.map((r) => `${r}.new`), fs);
+    const probe = planRetire({ retire, prevManifest: prev.manifest || {}, currentHashes, newFiles });
     const candidateDests = [
       ...probe.backups.map((b) => b.backupPath),
       ...probe.archives.map((a) => a.destPath),
     ];
     const existingDests = listExisting(args.target, candidateDests, fs);
-    const plan = planRetire({ retire, prevManifest: prev.manifest || {}, currentHashes, existingDests });
+    const plan = planRetire({ retire, prevManifest: prev.manifest || {}, currentHashes, existingDests, newFiles });
 
     if (plan.blocked.length) {
       // 변경 전에 멈춘다 — 디스크는 그대로, 마커도 그대로. dry-run 과 실제 실행이 같은 판정을 낸다.
