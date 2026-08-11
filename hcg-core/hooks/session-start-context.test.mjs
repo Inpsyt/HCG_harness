@@ -48,6 +48,10 @@ test("레거시 마커 감지 → 혼용 경고 (hcg-core 마커보다 우선)",
     const r = runHook(dir);
     assert.equal(r.status, 0);
     assert.match(r.stdout, /레거시 hcg-harness 마커/);
+    // 이행 경로는 0.3.0 부터 `/hcg-harness:upgrade` 1회 자동 절차다. 폐기된 "수동 가이드"
+    // 안내로 되돌아가면(레거시 플러그인 자신의 훅과 서로 다른 절차를 안내하던 상태) 여기서 깨진다.
+    assert.match(r.stdout, /\/hcg-harness:upgrade/);
+    assert.doesNotMatch(r.stdout, /수동 이행 가이드/);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

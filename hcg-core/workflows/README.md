@@ -2,8 +2,13 @@
 
 레거시 hcg-harness 의 dynamic-mode 템플릿 5종 중, 내장 기능과 겹치지 않는 3종만 싣는다
 (리뷰 → `/code-review` ultra, 감사·리서치 → ultracode / 즉석 Workflow — CLAUDE-core 라우팅 표).
-`.js` 파일은 레거시 0.2.2 와 **byte-identical 사본**이다 — 런타임 계약·검증 이력·`// CUSTOMIZE`
-시임 상세는 레거시 `hcg-harness/workflows/README.md` 가 정본이다.
+`.js` 파일의 **실행 본문은 레거시 0.2.2 사본**이다(런타임 계약·fail-closed 구조·`// CUSTOMIZE`
+시임 그대로). **예외는 `meta` 블록**이다 — `description`·`whenToUse` 는 워크플로 목록으로
+**사용자·세션 컨텍스트에 노출되는 표면**이라, 레거시 교리(역할 파이프라인·plan-agent·계약 잠금)를
+그대로 실으면 hcg-core 에 없는 절차를 안내하게 된다. 그래서 meta 텍스트만 hcg-core 라우팅
+(결합된 작업 = 세션이 직접 · 독립 Task = `parallel-tasks`)에 맞춰 다시 썼다.
+본문 개정 이력·검증 근거는 하네스 레포의 `CHANGELOG.md` 와 레거시 `hcg-harness/workflows/README.md`
+(레포에만 있다 — hcg-core 만 설치한 프로젝트에서는 열람 불가)를 본다.
 
 | 템플릿 | 목적 | 쓰기 | 호출 |
 |---|---|---|---|

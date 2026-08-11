@@ -277,7 +277,8 @@ claude plugin install hcg-core@hcg-harness-marketplace
 ## 8. 문서
 
 - `docs/install.md` — 설치 상세 + 수동 설치 폴백 (레거시 기준)
-- `docs/portable-instance-boundary.md` — 포터블 vs 프로젝트별 분리
+- `docs/portable-instance-boundary.md` — 포터블 vs 프로젝트별 분리 (레거시 기준 — hcg-core 의
+  경계는 위 §1·§3 이 정본)
 - `hcg-core/workflows/README.md` — 워크플로 커스터마이징
 - **[`CHANGELOG.md`](CHANGELOG.md)** — 두 플러그인의 전체 변경 이력 + 개정 근거
 

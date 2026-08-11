@@ -46,7 +46,8 @@ export function formatLegacyWarning(label = DEFAULT_LABEL) {
     label,
     "- ⚠ 레거시 hcg-harness 마커(.claude/.hcg-harness.json)가 감지되었습니다.",
     "- hcg-harness 와 hcg-core 를 같은 프로젝트에 함께 쓰지 마세요 — 훅 이중 발화·방법론 충돌.",
-    "- hcg-core 로 이행하려면 README 의 수동 이행 가이드를 따르세요.",
+    "- 이행: `/hcg-harness:upgrade` 1회 → hcg-core 로 전환(철거 → 정합화 → 재건 → 단언).",
+    "  커맨드가 안 보이면 레거시 플러그인이 비활성입니다 — 이행 동안만 다시 활성화하세요.",
   ].join("\n");
 }
 

@@ -3,7 +3,7 @@ export const meta = {
   description:
     'Bulk migration / codemod fan-out — discover a work-list of files to transform, apply the same transformation to each via a streaming pipeline (one agent per file, disjoint file ownership), verifying each edit INSIDE its own worktree, then run an aggregate build/test/type gate over the merged result. Writing agents run in isolated git worktrees so parallel mutations never collide.',
   whenToUse:
-    'When the same mechanical change must be applied across many independent files (a codemod, an API rename, a dependency bump, a lint-rule rollout) and the files do not depend on each other. Pass the discovery pattern + the transformation instruction as args. NOT for tightly-coupled changes (one change forcing edits across layers) — use the static plan→implement→qa pipeline for those.',
+    'When the same mechanical change must be applied across many independent files (a codemod, an API rename, a dependency bump, a lint-rule rollout) and the files do not depend on each other. Pass the discovery pattern + the transformation instruction as args. NOT for tightly-coupled changes (one change forcing edits across layers) — the session performs those directly, or dispatches independent Tasks via the `parallel-tasks` skill.',
   phases: [
     { title: 'Discover', detail: 'Find the work-list (files/symbols to transform), enforce disjoint file ownership, and fail closed if discovery exceeds the cap or is not provably complete' },
     { title: 'Transform', detail: 'Streaming pipeline: one agent per file applies the change AND self-checks it inside the same isolated worktree (fail-closed)' },

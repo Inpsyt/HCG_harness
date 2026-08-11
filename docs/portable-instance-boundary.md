@@ -1,5 +1,19 @@
 # Portable / per-project boundary
 
+> **⚠ 이 문서는 레거시 `hcg-harness`(파이프라인 하네스) 전용이다.** 아래 표의 세계관 —
+> 파이프라인 ①–⑥ 방법론 코어 · 에이전트 셸 5종 · `pipeline-phase`/codex 게이트 · codex 래퍼
+> 스크립트 · 훅 4종 번들 — 은 **레거시의 것**이고, `hcg-core` 는 그중 어느 것도 싣지 않는다
+> (방법론 코어는 슬림 Operating Rules + 라우팅 표, 에이전트는 `task-agent` 1종, 훅은
+> SessionStart 1종, codex 리뷰는 래퍼 없는 온디맨드 스킬).
+>
+> **hcg-core 의 포터블/프로젝트 경계**는 별도 문서를 두지 않는다 — 루트 `README.md` §1·§3 이
+> 정본이다. 요약하면: 포터블 = 플러그인(`CLAUDE-core.md` · `task-agent` · 스킬 7종 ·
+> 워크플로 3종 · SessionStart 훅 · `profiles/hcg/`), 프로젝트별 = `.claude/project.md`(유일한
+> 인스턴스 슬롯) · 도메인/E2E 스킬 · `contracts/**` · 앱 코드. 규칙 자체는 아래와 같다.
+>
+> 신규 프로젝트는 `hcg-core` 를 쓰고, 레거시 프로젝트는 `/hcg-harness:upgrade` 로 이행한다
+> (README §7).
+
 What ships in the **HCG harness** package (portable) vs what each **consuming
 project** authors (per-project). The rule: process methodology and HCG-standard
 stack conventions are portable; identity, paths, domain rules, and contracts are
