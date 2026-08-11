@@ -282,6 +282,7 @@ claude plugin install hcg-core@hcg-harness-marketplace
 
 ## 8. 문서
 
+- `docs/hcg-core-onboarding.html` — 팀 온보딩 발표자료 (브라우저로 열기 — 발표+자습 겸용)
 - `docs/install.md` — 설치 상세 + 수동 설치 폴백 (레거시 기준)
 - `docs/portable-instance-boundary.md` — 포터블 vs 프로젝트별 분리 (레거시 기준 — hcg-core 의
   경계는 위 §1·§3 이 정본)
