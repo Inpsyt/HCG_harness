@@ -1,8 +1,8 @@
 # 변경 이력
 
-이 레포가 서빙하는 두 플러그인(`hcg-core` · `hcg-harness`)의 이력이 **한 파일에 시간 역순**으로
-있다. 접두어 없는 버전(**0.2.2 이하**)은 전부 `hcg-harness` 것이다 — `hcg-core` 는 2026-08-06 에
-신설됐다.
+이 레포가 서빙하는 두 플러그인(`hcg-core` · `hcg-harness`)의 이력이 한 파일에 있다. **`hcg-core`
+항목이 먼저 오고 그다음이 `hcg-harness`, 각 플러그인 안에서는 시간 역순**(최신이 위)이다. 접두어
+없는 버전(**0.2.2 이하**)은 전부 `hcg-harness` 것이다 — `hcg-core` 는 2026-08-06 에 신설됐다.
 
 개요·사용법은 [README](README.md).
 
@@ -11,56 +11,6 @@
 > 커밋 메시지에도 같은 근거를 쓰되, 릴리스 단위의 서술은 여기가 정본이다.
 
 ---
-
-### hcg-core 0.1.0 — 2026-08-06
-
-신규 플러그인 — unhobbled 하네스. 설계: 2026-08-05 unhobble 진단(레거시 파이프라인은 Fable 5
-세대에서 순효과 음수)의 반전으로, 단일 세션 직접 수행이 기본이다.
-
-- **구성**: 슬림 CLAUDE-core(~3KB, Operating Rules §0~§5 + 작업 라우팅 표) · `parallel-tasks`
-  스킬(Task-축 병렬화 — 결합도 판정→풀스택 task-agent 병렬 dispatch→통합 검증) · `task-agent`
-  1종(역할 5종 폐지) · 이식 스킬 5종(파이프라인 잔재 제거 — 불일치 보고는 tasks/TODO 가 아니라
-  완료 보고, 계약 잠금 폐지) · 워크플로 3종(migrate·test-gen·converge — audit/review 는
-  ultracode·`/code-review` 내장으로 대체) · SessionStart 훅 1종(마커 `.claude/.hcg-core.json`,
-  레거시 마커 감지 시 혼용 경고) · `/hcg-core:init`(`--no-app` 선택형 앱 골격)·`:upgrade`.
-- **비포함(Won't)**: 파이프라인 모드·codex 게이트·tasks/ 부기·모델 배정 매트릭스·qa-e2e·
-  ui-standard 사본(AX 표준은 upstream `ax-wireframe` 를 frontend-conventions·task-agent·
-  project.md 3곳에서 명시 참조)·자동 마이그레이터.
-- **검토 반영(2026-08-06, push 전)**: contracts 템플릿 4종의 레거시 잔재 제거(역할·잠금 문구 →
-  세션 소유 모델 — 세션이 사용자 합의 후 작성·수정, 구현은 준수+완료 보고), design-guide 를
-  ax-wireframe 참조 기준으로 재작성(사본 토큰 표 제거 + **우선순위 규칙**: 충돌 시 design-guide
-  의 명시 기록 오버라이드가 전사 기본값보다 우선, 무기록 이탈 금지 — frontend-conventions·
-  project.md·task-agent 에도 동일 명시), shared-types 스텁 `.ts`(typed SSOT) 전환,
-  `docs/install.md` 레거시 전용 고지 추가.
-- **커밋 규율 1줄(2026-08-06 deepsearch 검토)**: §4 끝에 "검증 통과 작업 단위마다 커밋 — git 이
-  세션 간 핸드오프·재개의 원장, 메시지에 검증 요약" 추가. 근거: 세션 의도치 않은 종료 시 재개의
-  유일한 약점이 미커밋 창이며, 구조화 핸드오프는 모델 세대를 넘어 살아남는 하네스 4요소 중 하나
-  (2026 harness engineering 실측 — 같은 모델·다른 하네스 = SWE-bench 22점 차).
-- **codex-review 온디맨드 재도입(2026-08-06 딥다이브)**: 상시 게이트는 여전히 비포함 — 뺀
-  이유(동기 5–15분 + D9 분류 노동이 모든 변경의 기본 경로에 박힘)는 게이트라는 *형태*의 문제였고,
-  교차모델 리뷰의 가치 자체(레거시 Phase 33 에서 workflows 의 fail-open 결함 F7~F13 검출)는
-  실증됐기 때문. 재도입 형태: 슬림 `codex-review` **스킬**(게이트 아님) — **닫힌 트리거 7종**
-  (스키마 이관·auth·결제/외부 부작용·동시성 invariant·보안 표면·릴리스 직전·긴 세션 끝 대량
-  신규)에서 세션이 **제안 의무**·사용자 결정·**백그라운드 실행**(동기 대기 금지)·D9 핵심만
-  (정확성·계약 위반만 액션, 갭/개선은 부록 — phase-meta·BUG 부기 전무)·fail-open(실패는 "실행
-  못 함"으로 보고, 거짓 통과 금지). 라우팅 표에 1행 추가. wrapper 스크립트 없음 — 레거시
-  wrapper 의 실가치(D9 포커스 주입·빈 diff 가드)를 스킬 절차로 흡수해 프로젝트 배선 제로.
-  동시에 bootstrap.mjs 의 codex 데드코드(`--no-codex`·`CODEX_*` 토큰·`codexFiles`·marker
-  `choices.codex`) 제거 + 회귀 테스트 1건 추가.
-- **무인 실행 러너 추가(2026-08-07 A/B 벤치마크 실측 반영)**: `scripts/run-headless.mjs` —
-  모델별 사용량 한도로 세션이 끊기면 `--fallback` 모델로 같은 세션을 자동 재개한다(위
-  「무인 실행」 절). **세션 안의 지시로는 불가능**하다는 것이 설계 근거 — 한도는 세션
-  프로세스를 즉시 죽여 지시를 실행할 주체가 남지 않고, CLI `--fallback-model` 은 모델
-  overloaded/unavailable 전용이라 사용량 한도에 미발동한다(한도 상태에서 재현). 실측으로
-  확정한 4가지: ① 한도로 죽은 실행의 JSON 에도 `session_id` 가 있어 0턴 세션도 재개 가능
-  ② `subtype` 은 오류 시에도 `"success"` 라 판정 금지(exit code + `is_error` 사용)
-  ③ 재개 시 **원 프롬프트를 다시 실어야 함** — 첫 턴에 한도가 걸리면 이력이 비어 있어
-  "이어서 하라"고만 하면 재개 세션이 아무 일도 않고 정상 종료(라이브 재현 후 수정)
-  ④ 모델별 한도와 계정·세션 한도는 분리 — 후자는 모델을 바꿔도 막히므로 폴백을 시도하지
-  않는다. `--verify` 로 완주를 외부 검증(exit 10 = 조용한 미완주)해 `verification-ladder`
-  를 오케스트레이션 층에 적용한다. 단위 테스트 15건 추가 + bootstrap 스모크의 버전 리터럴
-  제거(plugin.json 대조 — 범프마다 깨지던 것). 이 변경 자체는 플러그인 버전 범프 대상이 아니었다
-  (0.1.0 유지) — 이후 0.1.1 로의 범프는 아래 항목 참조.
 
 ### hcg-core 0.1.1 — 2026-08-07
 
@@ -152,6 +102,81 @@ A/B) · 모킹 경계의 실 DB 스모크 · 금지 3종(공수 추정·개선 �
 공통 원인은 하나다 — **hcg-core 는 레거시에서 파일을 물려받았고, 물려받은 것의 "본문"만
 검토했다.** meta·주석·배너처럼 실행되지 않는 텍스트가 검토를 빠져나갔고, 그중 사용자에게
 노출되는 것들이 그대로 살아남았다. 버전은 범프하지 않는다(0.1.1 은 origin 에만 있고 미배포).
+
+**배포 절차 문서 정정 — 실제 갱신에서 드러난 3건 (2026-08-11)**
+
+머신에 설치된 0.1.0 을 0.1.1 로 실제로 올려 보며 나왔다. 문서만 읽고는 알 수 없는 것들이라
+팀 배포 1단계에서 그대로 막혔을 것이다.
+
+1. **`claude plugin update` 는 전체 ID 를 요구한다.** README §6·§7 의 `claude plugin update
+   hcg-core` · `hcg-harness` 는 `Plugin "hcg-core" not found` 로 **실패한다** — 팀이 받는 배포
+   안내의 첫 명령이 듣지 않는 상태였다. `hcg-core@hcg-harness-marketplace` 로 교정. 짧은 이름
+   해석은 **서브커맨드마다 다르다**(`install`·`enable`·`details` 는 받는다)는 것이 실측 결과라,
+   "짧게 써도 되겠지"로 되돌아가지 않도록 근거를 README 본문에 함께 남겼다.
+2. **user 스코프 갱신은 로컬 스코프 설치를 건드리지 않는다.** 프로젝트에 로컬로 설치된 사본이
+   있으면 user 를 올려도 그 프로젝트는 구버전을 계속 로드한다 — 해당 디렉터리에서 `--scope
+   local` 로 한 번 더 갱신해야 한다(실측: user 0.1.1 · local 0.1.0 공존). README §6 에 명시.
+3. **한 번 설치된 뒤에는 같은 버전으로 아무리 푸시해도 도달하지 않는다** — README §6 의 배포
+   규칙이 경고하던 상황을 실제로 밟았다. 0.1.1(`5e7008c`)을 설치한 뒤 `1234fd3` 이 푸시됐지만
+   `marketplace update` + `plugin update` 는 `already at the latest version (0.1.1)` 로 끝났다.
+   **미배포 릴리스에 변경을 누적하는 규율(버전 범프 금지)은 아직 아무도 설치하지 않았을 때만
+   성립한다** — 설치가 한 대라도 일어난 뒤의 추가 변경은 그 머신에 영원히 도달하지 않는다.
+   팀 배포 시점에 지켜야 할 것: **배포 직전 내용을 확정한 뒤 그 시점에 범프**하고, 그 전에
+   설치해 본 개발 머신은 재설치로 맞춘다.
+
+같은 점검에서 CHANGELOG 자신의 정렬도 고쳤다 — 머리말은 "시간 역순"이라 선언하면서 `hcg-core`
+0.1.0 이 0.1.1 위에 있었다. 실제 구성(플러그인별 그룹 · 그룹 안에서 역순)대로 두 블록을 바꾸고
+머리말을 그 구성에 맞췄다.
+
+### hcg-core 0.1.0 — 2026-08-06
+
+신규 플러그인 — unhobbled 하네스. 설계: 2026-08-05 unhobble 진단(레거시 파이프라인은 Fable 5
+세대에서 순효과 음수)의 반전으로, 단일 세션 직접 수행이 기본이다.
+
+- **구성**: 슬림 CLAUDE-core(~3KB, Operating Rules §0~§5 + 작업 라우팅 표) · `parallel-tasks`
+  스킬(Task-축 병렬화 — 결합도 판정→풀스택 task-agent 병렬 dispatch→통합 검증) · `task-agent`
+  1종(역할 5종 폐지) · 이식 스킬 5종(파이프라인 잔재 제거 — 불일치 보고는 tasks/TODO 가 아니라
+  완료 보고, 계약 잠금 폐지) · 워크플로 3종(migrate·test-gen·converge — audit/review 는
+  ultracode·`/code-review` 내장으로 대체) · SessionStart 훅 1종(마커 `.claude/.hcg-core.json`,
+  레거시 마커 감지 시 혼용 경고) · `/hcg-core:init`(`--no-app` 선택형 앱 골격)·`:upgrade`.
+- **비포함(Won't)**: 파이프라인 모드·codex 게이트·tasks/ 부기·모델 배정 매트릭스·qa-e2e·
+  ui-standard 사본(AX 표준은 upstream `ax-wireframe` 를 frontend-conventions·task-agent·
+  project.md 3곳에서 명시 참조)·자동 마이그레이터.
+- **검토 반영(2026-08-06, push 전)**: contracts 템플릿 4종의 레거시 잔재 제거(역할·잠금 문구 →
+  세션 소유 모델 — 세션이 사용자 합의 후 작성·수정, 구현은 준수+완료 보고), design-guide 를
+  ax-wireframe 참조 기준으로 재작성(사본 토큰 표 제거 + **우선순위 규칙**: 충돌 시 design-guide
+  의 명시 기록 오버라이드가 전사 기본값보다 우선, 무기록 이탈 금지 — frontend-conventions·
+  project.md·task-agent 에도 동일 명시), shared-types 스텁 `.ts`(typed SSOT) 전환,
+  `docs/install.md` 레거시 전용 고지 추가.
+- **커밋 규율 1줄(2026-08-06 deepsearch 검토)**: §4 끝에 "검증 통과 작업 단위마다 커밋 — git 이
+  세션 간 핸드오프·재개의 원장, 메시지에 검증 요약" 추가. 근거: 세션 의도치 않은 종료 시 재개의
+  유일한 약점이 미커밋 창이며, 구조화 핸드오프는 모델 세대를 넘어 살아남는 하네스 4요소 중 하나
+  (2026 harness engineering 실측 — 같은 모델·다른 하네스 = SWE-bench 22점 차).
+- **codex-review 온디맨드 재도입(2026-08-06 딥다이브)**: 상시 게이트는 여전히 비포함 — 뺀
+  이유(동기 5–15분 + D9 분류 노동이 모든 변경의 기본 경로에 박힘)는 게이트라는 *형태*의 문제였고,
+  교차모델 리뷰의 가치 자체(레거시 Phase 33 에서 workflows 의 fail-open 결함 F7~F13 검출)는
+  실증됐기 때문. 재도입 형태: 슬림 `codex-review` **스킬**(게이트 아님) — **닫힌 트리거 7종**
+  (스키마 이관·auth·결제/외부 부작용·동시성 invariant·보안 표면·릴리스 직전·긴 세션 끝 대량
+  신규)에서 세션이 **제안 의무**·사용자 결정·**백그라운드 실행**(동기 대기 금지)·D9 핵심만
+  (정확성·계약 위반만 액션, 갭/개선은 부록 — phase-meta·BUG 부기 전무)·fail-open(실패는 "실행
+  못 함"으로 보고, 거짓 통과 금지). 라우팅 표에 1행 추가. wrapper 스크립트 없음 — 레거시
+  wrapper 의 실가치(D9 포커스 주입·빈 diff 가드)를 스킬 절차로 흡수해 프로젝트 배선 제로.
+  동시에 bootstrap.mjs 의 codex 데드코드(`--no-codex`·`CODEX_*` 토큰·`codexFiles`·marker
+  `choices.codex`) 제거 + 회귀 테스트 1건 추가.
+- **무인 실행 러너 추가(2026-08-07 A/B 벤치마크 실측 반영)**: `scripts/run-headless.mjs` —
+  모델별 사용량 한도로 세션이 끊기면 `--fallback` 모델로 같은 세션을 자동 재개한다(위
+  「무인 실행」 절). **세션 안의 지시로는 불가능**하다는 것이 설계 근거 — 한도는 세션
+  프로세스를 즉시 죽여 지시를 실행할 주체가 남지 않고, CLI `--fallback-model` 은 모델
+  overloaded/unavailable 전용이라 사용량 한도에 미발동한다(한도 상태에서 재현). 실측으로
+  확정한 4가지: ① 한도로 죽은 실행의 JSON 에도 `session_id` 가 있어 0턴 세션도 재개 가능
+  ② `subtype` 은 오류 시에도 `"success"` 라 판정 금지(exit code + `is_error` 사용)
+  ③ 재개 시 **원 프롬프트를 다시 실어야 함** — 첫 턴에 한도가 걸리면 이력이 비어 있어
+  "이어서 하라"고만 하면 재개 세션이 아무 일도 않고 정상 종료(라이브 재현 후 수정)
+  ④ 모델별 한도와 계정·세션 한도는 분리 — 후자는 모델을 바꿔도 막히므로 폴백을 시도하지
+  않는다. `--verify` 로 완주를 외부 검증(exit 10 = 조용한 미완주)해 `verification-ladder`
+  를 오케스트레이션 층에 적용한다. 단위 테스트 15건 추가 + bootstrap 스모크의 버전 리터럴
+  제거(plugin.json 대조 — 범프마다 깨지던 것). 이 변경 자체는 플러그인 버전 범프 대상이 아니었다
+  (0.1.0 유지) — 이후 0.1.1 로의 범프는 위 항목 참조.
 
 ### hcg-harness 0.3.0 — 2026-08-07
 

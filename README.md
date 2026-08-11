@@ -206,9 +206,15 @@ overloaded/unavailable 일 때 전용이라 **사용량 한도에는 발동하�
 
 ```bash
 claude plugin marketplace update hcg-harness-marketplace
-claude plugin update hcg-core
+claude plugin update hcg-core@hcg-harness-marketplace
 claude plugin list                # 확인
 ```
+
+`update` 는 **전체 ID 를 요구한다** — `claude plugin update hcg-core` 는
+`Plugin "hcg-core" not found` 로 실패한다(`install`·`enable`·`details` 는 짧은 이름을 받는다).
+프로젝트에 로컬 스코프로 따로 설치돼 있으면(`claude plugin list` 의 `Scope: local`) 그
+프로젝트 디렉터리에서 `--scope local` 로 한 번 더 갱신해야 한다 — user 스코프 갱신은 로컬
+설치를 건드리지 않는다.
 
 **세션을 재시작**해야 스킬·훅·에이전트·커맨드가 새 버전으로 동작한다.
 프로젝트 안의 관리 파일(`CLAUDE-core.md` 등)을 새 템플릿으로 맞추려면 `/hcg-core:upgrade` —
@@ -243,7 +249,7 @@ claude plugin list                # 확인
 ```bash
 # ① 플러그인 갱신 — 반드시 새 세션에서 진행
 claude plugin marketplace update hcg-harness-marketplace
-claude plugin update hcg-harness
+claude plugin update hcg-harness@hcg-harness-marketplace   # update 는 전체 ID 필수
 
 # ② hcg-core 설치 — 머신당 1회
 claude plugin install hcg-core@hcg-harness-marketplace
