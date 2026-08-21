@@ -128,6 +128,23 @@ A/B) · 모킹 경계의 실 DB 스모크 · 금지 3종(공수 추정·개선 �
 0.1.0 이 0.1.1 위에 있었다. 실제 구성(플러그인별 그룹 · 그룹 안에서 역순)대로 두 블록을 바꾸고
 머리말을 그 구성에 맞췄다.
 
+**앱 템플릿 `.npmrc` — 운영 NODE_ENV=production 빌드 실패 방어 (2026-08-21)**
+
+운영 서버는 전역 `NODE_ENV=production` 이고 배포는 소스 설치 후 서버 빌드다(배포 파이프라인
+npm 표준). npm 7+ 는 `NODE_ENV=production` 에서 `omit` 기본값이 `dev` 라 `npm install`/`npm ci`
+가 devDependencies(typescript·@types·tailwind·postcss·prisma CLI)를 통째로 건너뛰고, TS
+프로젝트의 `next build` 가 실패한다. CI 러너에는 NODE_ENV 가 없어 초록 → **운영에서만 깨지는
+비대칭**이라 배포마다 재발했다. 앱 템플릿 `.npmrc` 에 `include=dev` 1줄 추가(실측: npm 10.9,
+NODE_ENV=production 에서 dev 미설치 재현 → include=dev 로 복구). 기각 대안 — ① 빌드 필수
+패키지를 dependencies 로 이동(dev/runtime 규약 훼손 + 런타임 비대) ② 배포 절차 문서에
+`--include=dev` 명시(절차 규율 의존 — 습관적 `npm install` 한 번에 재발, fail-safe 아님)
+③ `.npmrc` 에 `omit=` 빈 값(CLI `--omit=dev` 가 자연 오버라이드되는 장점까지 실측 확인했으나,
+빈 값→빈 목록 강제는 미문서 동작이라 npm 이 파싱을 바꾸면 원 결함이 조용히 되돌아온다 —
+비대는 참아도 회귀는 못 참는다). 부작용 1건 실측·주석 명시 — include 는 omit 보다 우선하므로
+이 줄이 있으면 명시적 `npm ci --omit=dev` 도 dev 를 설치한다; 슬림 설치는 `npm ci --omit=dev
+--include=`. 레거시 앱 템플릿(`hcg-harness/profiles/.../.npmrc`)에도 동일 적용 — 두 벌 중
+한쪽만 고쳐지는 것이 이 레포의 실제 사고 패턴이다(0.1.1 두 벌 파일 사고).
+
 ### hcg-core 0.1.0 — 2026-08-06
 
 신규 플러그인 — unhobbled 하네스. 설계: 2026-08-05 unhobble 진단(레거시 파이프라인은 Fable 5
