@@ -12,6 +12,89 @@
 
 ---
 
+### hcg-core 0.1.2 — 2026-08-21
+
+0.1.1 이 개발 머신에 설치된 시점(`5e7008c`) 이후 누적된 변경의 배포 단위 — 같은 버전 재푸시는
+설치본에 도달하지 않으므로(아래 「배포 절차 문서 정정」 3번 실측) 여기서 범프해 확정한다.
+포함: 방향성 불일치 4건 · 배포 절차 문서 정정 3건 · 앱 템플릿 `.npmrc` 운영 빌드 방어.
+
+**배포 전 정합 점검 — 방향성 불일치 4건 (2026-08-11)**
+
+동작은 실측으로 확인됐다(매니페스트 검증 3건 · 실엔진 init 30파일 + 마커 · 실엔진 upgrade
+충돌 `.new` 보존 · SessionStart 3분기 · 단위 237/237). 그 위에서 문서·메타 문구가 hcg-core
+교리와 같은 방향을 가리키는지 대조한 결과, **사용자·세션에 노출되는 안내** 4건이 어긋나 있었다.
+
+1. **워크플로 `meta` 가 레거시 교리를 안내했다** — `migrate` 의 whenToUse 는 결합된 변경을
+   "static plan→implement→qa pipeline" 으로 보내고, `converge` 는 계약 잠금+리뷰 게이트
+   ("the gap the lock+review keeps authoritative")를 전제하며 제안 태스크를 `plan-agent` 에
+   넘기라고 했다 — hcg-core 에는 셋 다 없다(파이프라인 폐지 · 잠금 해제 · 에이전트는 task-agent
+   1종). `.js` 를 레거시와 byte-identical 로 유지한 정책의 부작용이다. **`meta` 블록은 그 정책의
+   예외**로 확정했다 — `description`·`whenToUse` 는 워크플로 목록으로 세션 컨텍스트에 실리는
+   표면이라, 실행 본문과 달리 "사본"으로 둘 수 없다. 라우팅 표(결합=세션 직접 · 독립 Task=
+   `parallel-tasks`)에 맞춰 다시 쓰고 근거를 `workflows/README.md` 에 명문화.
+2. **살아있는 문서 규율의 포인터가 깨져 있었다** — CHANGELOG 분리(`03077e8`) 이후에도
+   `CLAUDE-core.md`(루트본·템플릿본)와 `codex-review` 스킬이 "README 변경 이력"을 가리켰다.
+   CHANGELOG 자신은 "릴리스 단위 서술은 여기가 정본"이라 선언한다. 더 큰 문제는 `CLAUDE-core.md`
+   가 **프로젝트로 렌더되는 파일**이라는 것 — 소비 프로젝트에는 그 README 가 애초에 존재하지
+   않는다. "하네스 레포의 `CHANGELOG.md`" 로 통일했다(레거시 2벌 포함, 아래 0.3.0 항목).
+3. **SessionStart 레거시 분기가 폐기된 절차를 안내했다** — "README 의 수동 이행 가이드를
+   따르세요"는 0.3.0 이행 램프 이전 문구다. 같은 상황에서 레거시 플러그인 자신의 훅은
+   `/hcg-harness:upgrade` 1회를 안내하고 있어 **두 플러그인이 서로 다른 절차**를 말하고 있었다.
+   자동 절차로 통일하고 회귀 테스트를 붙였다(커맨드 존재 + 폐기 문구 부재 양방향 단언 —
+   문구 드리프트는 테스트가 없으면 반드시 재발한다는 것이 이 레포의 이력).
+4. **`docs/portable-instance-boundary.md` 에 레거시 경고가 없었다** — `install.md` 는 0.1.0 때
+   레거시 전용 배너를 받았지만 이 문서는 누락됐고, README §8 의 표기도 install.md 에만 있었다.
+   내용은 "HARNESS core = Pipeline ①–⑥" · 에이전트 셸 5종 · codex 게이트 래퍼 · 훅 4종 번들을
+   *포터블*로 서술해 hcg-core 교리와 정면 충돌한다. 배너 + hcg-core 경계 포인터(README §1·§3 이
+   정본 — 별도 문서를 새로 만들지 않는다)를 달았다.
+
+공통 원인은 하나다 — **hcg-core 는 레거시에서 파일을 물려받았고, 물려받은 것의 "본문"만
+검토했다.** meta·주석·배너처럼 실행되지 않는 텍스트가 검토를 빠져나갔고, 그중 사용자에게
+노출되는 것들이 그대로 살아남았다. 버전은 당시 범프하지 않았다(0.1.1 을 미배포로 판단) —
+직후 아래 「배포 절차 문서 정정」 3번 실측으로 그 전제가 깨져, 이 항목부터 0.1.2 로 배포된다.
+
+**배포 절차 문서 정정 — 실제 갱신에서 드러난 3건 (2026-08-11)**
+
+머신에 설치된 0.1.0 을 0.1.1 로 실제로 올려 보며 나왔다. 문서만 읽고는 알 수 없는 것들이라
+팀 배포 1단계에서 그대로 막혔을 것이다.
+
+1. **`claude plugin update` 는 전체 ID 를 요구한다.** README §6·§7 의 `claude plugin update
+   hcg-core` · `hcg-harness` 는 `Plugin "hcg-core" not found` 로 **실패한다** — 팀이 받는 배포
+   안내의 첫 명령이 듣지 않는 상태였다. `hcg-core@hcg-harness-marketplace` 로 교정. 짧은 이름
+   해석은 **서브커맨드마다 다르다**(`install`·`enable`·`details` 는 받는다)는 것이 실측 결과라,
+   "짧게 써도 되겠지"로 되돌아가지 않도록 근거를 README 본문에 함께 남겼다.
+2. **user 스코프 갱신은 로컬 스코프 설치를 건드리지 않는다.** 프로젝트에 로컬로 설치된 사본이
+   있으면 user 를 올려도 그 프로젝트는 구버전을 계속 로드한다 — 해당 디렉터리에서 `--scope
+   local` 로 한 번 더 갱신해야 한다(실측: user 0.1.1 · local 0.1.0 공존). README §6 에 명시.
+3. **한 번 설치된 뒤에는 같은 버전으로 아무리 푸시해도 도달하지 않는다** — README §6 의 배포
+   규칙이 경고하던 상황을 실제로 밟았다. 0.1.1(`5e7008c`)을 설치한 뒤 `1234fd3` 이 푸시됐지만
+   `marketplace update` + `plugin update` 는 `already at the latest version (0.1.1)` 로 끝났다.
+   **미배포 릴리스에 변경을 누적하는 규율(버전 범프 금지)은 아직 아무도 설치하지 않았을 때만
+   성립한다** — 설치가 한 대라도 일어난 뒤의 추가 변경은 그 머신에 영원히 도달하지 않는다.
+   팀 배포 시점에 지켜야 할 것: **배포 직전 내용을 확정한 뒤 그 시점에 범프**하고, 그 전에
+   설치해 본 개발 머신은 재설치로 맞춘다.
+
+같은 점검에서 CHANGELOG 자신의 정렬도 고쳤다 — 머리말은 "시간 역순"이라 선언하면서 `hcg-core`
+0.1.0 이 0.1.1 위에 있었다. 실제 구성(플러그인별 그룹 · 그룹 안에서 역순)대로 두 블록을 바꾸고
+머리말을 그 구성에 맞췄다.
+
+**앱 템플릿 `.npmrc` — 운영 NODE_ENV=production 빌드 실패 방어 (2026-08-21)**
+
+운영 서버는 전역 `NODE_ENV=production` 이고 배포는 소스 설치 후 서버 빌드다(배포 파이프라인
+npm 표준). npm 7+ 는 `NODE_ENV=production` 에서 `omit` 기본값이 `dev` 라 `npm install`/`npm ci`
+가 devDependencies(typescript·@types·tailwind·postcss·prisma CLI)를 통째로 건너뛰고, TS
+프로젝트의 `next build` 가 실패한다. CI 러너에는 NODE_ENV 가 없어 초록 → **운영에서만 깨지는
+비대칭**이라 배포마다 재발했다. 앱 템플릿 `.npmrc` 에 `include=dev` 1줄 추가(실측: npm 10.9,
+NODE_ENV=production 에서 dev 미설치 재현 → include=dev 로 복구). 기각 대안 — ① 빌드 필수
+패키지를 dependencies 로 이동(dev/runtime 규약 훼손 + 런타임 비대) ② 배포 절차 문서에
+`--include=dev` 명시(절차 규율 의존 — 습관적 `npm install` 한 번에 재발, fail-safe 아님)
+③ `.npmrc` 에 `omit=` 빈 값(CLI `--omit=dev` 가 자연 오버라이드되는 장점까지 실측 확인했으나,
+빈 값→빈 목록 강제는 미문서 동작이라 npm 이 파싱을 바꾸면 원 결함이 조용히 되돌아온다 —
+비대는 참아도 회귀는 못 참는다). 부작용 1건 실측·주석 명시 — include 는 omit 보다 우선하므로
+이 줄이 있으면 명시적 `npm ci --omit=dev` 도 dev 를 설치한다; 슬림 설치는 `npm ci --omit=dev
+--include=`. 레거시 앱 템플릿(`hcg-harness/profiles/.../.npmrc`)에도 동일 적용 — 두 벌 중
+한쪽만 고쳐지는 것이 이 레포의 실제 사고 패턴이다(0.1.1 두 벌 파일 사고).
+
 ### hcg-core 0.1.1 — 2026-08-07
 
 settings 템플릿이 레거시 플러그인(`hcg-harness`)을 `enabledPlugins` 에서 `false` 로 명시
@@ -68,82 +151,6 @@ A/B) · 모킹 경계의 실 DB 스모크 · 금지 3종(공수 추정·개선 �
 (`finalizeManifest` 동일 규칙). hcg-core 는 철거(retire)가 없어 오늘의 판정을 바꾸지 않는
 무해한 변경이지만, 마커가 디스크를 오해하는 상태를 남기지 않는다 — 두 엔진이 갈라지면
 다음 개정에서 한쪽만 고쳐지는 것이 이 레포의 실제 사고 패턴이었다(0.1.1 의 두 벌 파일 사고).
-
-**배포 전 정합 점검 — 방향성 불일치 4건 (2026-08-11)**
-
-동작은 실측으로 확인됐다(매니페스트 검증 3건 · 실엔진 init 30파일 + 마커 · 실엔진 upgrade
-충돌 `.new` 보존 · SessionStart 3분기 · 단위 237/237). 그 위에서 문서·메타 문구가 hcg-core
-교리와 같은 방향을 가리키는지 대조한 결과, **사용자·세션에 노출되는 안내** 4건이 어긋나 있었다.
-
-1. **워크플로 `meta` 가 레거시 교리를 안내했다** — `migrate` 의 whenToUse 는 결합된 변경을
-   "static plan→implement→qa pipeline" 으로 보내고, `converge` 는 계약 잠금+리뷰 게이트
-   ("the gap the lock+review keeps authoritative")를 전제하며 제안 태스크를 `plan-agent` 에
-   넘기라고 했다 — hcg-core 에는 셋 다 없다(파이프라인 폐지 · 잠금 해제 · 에이전트는 task-agent
-   1종). `.js` 를 레거시와 byte-identical 로 유지한 정책의 부작용이다. **`meta` 블록은 그 정책의
-   예외**로 확정했다 — `description`·`whenToUse` 는 워크플로 목록으로 세션 컨텍스트에 실리는
-   표면이라, 실행 본문과 달리 "사본"으로 둘 수 없다. 라우팅 표(결합=세션 직접 · 독립 Task=
-   `parallel-tasks`)에 맞춰 다시 쓰고 근거를 `workflows/README.md` 에 명문화.
-2. **살아있는 문서 규율의 포인터가 깨져 있었다** — CHANGELOG 분리(`03077e8`) 이후에도
-   `CLAUDE-core.md`(루트본·템플릿본)와 `codex-review` 스킬이 "README 변경 이력"을 가리켰다.
-   CHANGELOG 자신은 "릴리스 단위 서술은 여기가 정본"이라 선언한다. 더 큰 문제는 `CLAUDE-core.md`
-   가 **프로젝트로 렌더되는 파일**이라는 것 — 소비 프로젝트에는 그 README 가 애초에 존재하지
-   않는다. "하네스 레포의 `CHANGELOG.md`" 로 통일했다(레거시 2벌 포함, 아래 0.3.0 항목).
-3. **SessionStart 레거시 분기가 폐기된 절차를 안내했다** — "README 의 수동 이행 가이드를
-   따르세요"는 0.3.0 이행 램프 이전 문구다. 같은 상황에서 레거시 플러그인 자신의 훅은
-   `/hcg-harness:upgrade` 1회를 안내하고 있어 **두 플러그인이 서로 다른 절차**를 말하고 있었다.
-   자동 절차로 통일하고 회귀 테스트를 붙였다(커맨드 존재 + 폐기 문구 부재 양방향 단언 —
-   문구 드리프트는 테스트가 없으면 반드시 재발한다는 것이 이 레포의 이력).
-4. **`docs/portable-instance-boundary.md` 에 레거시 경고가 없었다** — `install.md` 는 0.1.0 때
-   레거시 전용 배너를 받았지만 이 문서는 누락됐고, README §8 의 표기도 install.md 에만 있었다.
-   내용은 "HARNESS core = Pipeline ①–⑥" · 에이전트 셸 5종 · codex 게이트 래퍼 · 훅 4종 번들을
-   *포터블*로 서술해 hcg-core 교리와 정면 충돌한다. 배너 + hcg-core 경계 포인터(README §1·§3 이
-   정본 — 별도 문서를 새로 만들지 않는다)를 달았다.
-
-공통 원인은 하나다 — **hcg-core 는 레거시에서 파일을 물려받았고, 물려받은 것의 "본문"만
-검토했다.** meta·주석·배너처럼 실행되지 않는 텍스트가 검토를 빠져나갔고, 그중 사용자에게
-노출되는 것들이 그대로 살아남았다. 버전은 범프하지 않는다(0.1.1 은 origin 에만 있고 미배포).
-
-**배포 절차 문서 정정 — 실제 갱신에서 드러난 3건 (2026-08-11)**
-
-머신에 설치된 0.1.0 을 0.1.1 로 실제로 올려 보며 나왔다. 문서만 읽고는 알 수 없는 것들이라
-팀 배포 1단계에서 그대로 막혔을 것이다.
-
-1. **`claude plugin update` 는 전체 ID 를 요구한다.** README §6·§7 의 `claude plugin update
-   hcg-core` · `hcg-harness` 는 `Plugin "hcg-core" not found` 로 **실패한다** — 팀이 받는 배포
-   안내의 첫 명령이 듣지 않는 상태였다. `hcg-core@hcg-harness-marketplace` 로 교정. 짧은 이름
-   해석은 **서브커맨드마다 다르다**(`install`·`enable`·`details` 는 받는다)는 것이 실측 결과라,
-   "짧게 써도 되겠지"로 되돌아가지 않도록 근거를 README 본문에 함께 남겼다.
-2. **user 스코프 갱신은 로컬 스코프 설치를 건드리지 않는다.** 프로젝트에 로컬로 설치된 사본이
-   있으면 user 를 올려도 그 프로젝트는 구버전을 계속 로드한다 — 해당 디렉터리에서 `--scope
-   local` 로 한 번 더 갱신해야 한다(실측: user 0.1.1 · local 0.1.0 공존). README §6 에 명시.
-3. **한 번 설치된 뒤에는 같은 버전으로 아무리 푸시해도 도달하지 않는다** — README §6 의 배포
-   규칙이 경고하던 상황을 실제로 밟았다. 0.1.1(`5e7008c`)을 설치한 뒤 `1234fd3` 이 푸시됐지만
-   `marketplace update` + `plugin update` 는 `already at the latest version (0.1.1)` 로 끝났다.
-   **미배포 릴리스에 변경을 누적하는 규율(버전 범프 금지)은 아직 아무도 설치하지 않았을 때만
-   성립한다** — 설치가 한 대라도 일어난 뒤의 추가 변경은 그 머신에 영원히 도달하지 않는다.
-   팀 배포 시점에 지켜야 할 것: **배포 직전 내용을 확정한 뒤 그 시점에 범프**하고, 그 전에
-   설치해 본 개발 머신은 재설치로 맞춘다.
-
-같은 점검에서 CHANGELOG 자신의 정렬도 고쳤다 — 머리말은 "시간 역순"이라 선언하면서 `hcg-core`
-0.1.0 이 0.1.1 위에 있었다. 실제 구성(플러그인별 그룹 · 그룹 안에서 역순)대로 두 블록을 바꾸고
-머리말을 그 구성에 맞췄다.
-
-**앱 템플릿 `.npmrc` — 운영 NODE_ENV=production 빌드 실패 방어 (2026-08-21)**
-
-운영 서버는 전역 `NODE_ENV=production` 이고 배포는 소스 설치 후 서버 빌드다(배포 파이프라인
-npm 표준). npm 7+ 는 `NODE_ENV=production` 에서 `omit` 기본값이 `dev` 라 `npm install`/`npm ci`
-가 devDependencies(typescript·@types·tailwind·postcss·prisma CLI)를 통째로 건너뛰고, TS
-프로젝트의 `next build` 가 실패한다. CI 러너에는 NODE_ENV 가 없어 초록 → **운영에서만 깨지는
-비대칭**이라 배포마다 재발했다. 앱 템플릿 `.npmrc` 에 `include=dev` 1줄 추가(실측: npm 10.9,
-NODE_ENV=production 에서 dev 미설치 재현 → include=dev 로 복구). 기각 대안 — ① 빌드 필수
-패키지를 dependencies 로 이동(dev/runtime 규약 훼손 + 런타임 비대) ② 배포 절차 문서에
-`--include=dev` 명시(절차 규율 의존 — 습관적 `npm install` 한 번에 재발, fail-safe 아님)
-③ `.npmrc` 에 `omit=` 빈 값(CLI `--omit=dev` 가 자연 오버라이드되는 장점까지 실측 확인했으나,
-빈 값→빈 목록 강제는 미문서 동작이라 npm 이 파싱을 바꾸면 원 결함이 조용히 되돌아온다 —
-비대는 참아도 회귀는 못 참는다). 부작용 1건 실측·주석 명시 — include 는 omit 보다 우선하므로
-이 줄이 있으면 명시적 `npm ci --omit=dev` 도 dev 를 설치한다; 슬림 설치는 `npm ci --omit=dev
---include=`. 레거시 앱 템플릿(`hcg-harness/profiles/.../.npmrc`)에도 동일 적용 — 두 벌 중
-한쪽만 고쳐지는 것이 이 레포의 실제 사고 패턴이다(0.1.1 두 벌 파일 사고).
 
 ### hcg-core 0.1.0 — 2026-08-06
 

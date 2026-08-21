@@ -17,7 +17,7 @@
       "name": "hcg-core",
       "source": "./hcg-core",
       "description": "HCG unhobbled core (기본 권장): 슬림 방법론(Operating Rules §0–§5 + 작업 라우팅) + Task-축 병렬화(task-agent 1종 · parallel-tasks 스킬) + contracts 문서 규약 + HCG 스택 컨벤션 + codex-review 온디맨드 스킬(닫힌 트리거·백그라운드·게이트 아님) + 워크플로 3종(migrate · test-gen · converge) + SessionStart 훅 1종 + /hcg-core:init · :upgrade. hcg-harness 는 0.3.0 부터 이행 전용이다 — 신규 프로젝트는 hcg-core 를 쓰고, 두 플러그인을 한 프로젝트에 함께 설치하지 않는다.",
-      "version": "0.1.1"
+      "version": "0.1.2"
     }
   ]
 }
