@@ -25,8 +25,7 @@
       ".claude/agents/qa-agent.md",
       "CLAUDE.md",
       ".claude/CLAUDE-core.md",
-      ".claude/settings.json",
-      ".github/workflows/ci.yml"
+      ".claude/settings.json"
     ],
     "archive": [
       "tasks/phase-meta.yml",

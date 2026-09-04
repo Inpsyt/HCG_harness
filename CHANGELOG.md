@@ -12,6 +12,58 @@
 
 ---
 
+### hcg-core 0.1.4 — 2026-09-04
+
+**hcg 프로파일 앱 템플릿 스택 표준 개정 (profile 0.1.0 → 0.2.0)** — 배포 시스템 실측
+코호트(next 의존 27개 중 next 16 코호트 13개 = 최다) 기준으로 표준을 재정렬했다. 종전 템플릿
+선언(next 15 · tailwind 3 · zod 3 · prisma 6)은 코호트 표준 대비 major 불일치 4건 + 누락 2건.
+
+개정 선언(코호트 최빈 선언을 캐럿 하한으로): `next ^16.2.2` · `react`/`react-dom ^19.2.4` ·
+`typescript ^5` · `tailwindcss ^4` · **`@tailwindcss/postcss ^4` 신규** ·
+`@tanstack/react-query ^5.96.1` · `zustand ^5.0.12` · `react-hook-form ^7.72.0` ·
+**`@hookform/resolvers ^5.2.2` 신규** · `zod ^4.3.6` · `@prisma/client ^7.6.0` ·
+**`@prisma/adapter-mariadb ^7.6.0` 신규** · `prisma ^7.6.0`(devDependencies 유지 — 코호트 8:4) ·
+`eslint-config-next ^16.2.2` · **`dotenv ^17` 신규**(Prisma 7 CLI 용).
+
+**판단 근거**:
+
+1. **의존 배치도 코호트 표준을 따랐다** — build-critical 패키지(typescript·tailwindcss·
+   @tailwindcss/postcss)를 dependencies 로 이동. `.npmrc` `include=dev` 방어는 유지한다
+   (@types·eslint·prisma CLI·dotenv 가 여전히 dev 에 있고, 이중 방어가 싸다).
+2. **Tailwind 4 전환** — postcss 플러그인을 `@tailwindcss/postcss` 로 교체, `globals.css` 는
+   `@import "tailwindcss"`, `tailwind.config.ts` 삭제(v4 자동 콘텐츠 감지). `postcss`·
+   `autoprefixer` 명시 의존 제거(v4 내장).
+3. **Prisma 7 전환** — v7 은 구조가 바뀐다: generator `prisma-client`(output 필수 →
+   `lib/generated/prisma`, gitignore) · 접속 URL 정본은 `prisma.config.ts`(CLI 가 .env 를 자동
+   로드하지 않아 dotenv 동봉) · 드라이버 어댑터 필수 → `@prisma/adapter-mariadb` 경유
+   `lib/db.ts` 싱글턴 신설. `DATABASE_URL` 은 `mysql://` 그대로 둔다 — 어댑터가 `mariadb://` 로
+   재작성함을 어댑터 7.10.0 소스로 실측 확인. `migrate dev`/`db push` 가 generate 를 자동 실행하지
+   않는 v7 규율을 db-conventions·backend-conventions 스킬에 반영.
+4. **eslint-config-next 16 은 flat-config 네이티브** — FlatCompat(`@eslint/eslintrc`) 경유가
+   TypeError(circular structure) 로 깨지는 것을 렌더링 스모크로 실측. 서브패스 import
+   (`eslint-config-next/core-web-vitals`·`/typescript`) 로 교체하고 `@eslint/eslintrc` 의존 제거.
+   prisma 생성물은 lint ignore.
+5. **CI 드리프트 게이트 v7 재설계** — 실측으로 3연쇄 결함 발견: ① `--to-schema-datamodel`
+   플래그 제거 → `--to-schema` 로 교체 ② 빈 migrations 디렉터리는 `migration_lock.toml` 없이
+   커넥터 판별 불가 → 게이트가 락 파일을 시드 ③ 마이그레이션 재생에 shadow DB 가 필수가 됐고
+   `--shadow-database-url` 플래그도 제거(오직 `prisma.config.ts` 의
+   `datasource.shadowDatabaseUrl`) → **contract-drift 잡에 MariaDB 서비스 컨테이너 추가** +
+   `SHADOW_DATABASE_URL` 주입(prisma.config.ts 는 미설정 시 필드 생략 — 로컬 개발 흐름 무영향).
+   임시 docker MariaDB 로 parity→exit 0 · 모델 추가 드리프트→exit 2 를 실측했다(게이트 검출력
+   증명 — anti-overfit 가드).
+6. **`env("DATABASE_URL")` 은 config 로드 시점 즉시 해석** — .env 가 아직 없는 부트스트랩
+   직후에는 `prisma generate` 포함 모든 prisma CLI 가 실패한다. setupCommands 에 .env 시드
+   단계(`.env.example` 복사, 존재 시 no-op, node 원라이너로 크로스플랫폼)를 추가해 해결·실측.
+7. **레거시 `hcg-harness` 프로파일은 동결, 이행 의미론은 재정의** — 램프 프로파일의 구 스택
+   선언은 그대로 두되(새 표준은 hcg-core 만 서빙), 앱 템플릿이 스택 세대를 넘어가면서 "이행본 ≡
+   신규 init" 등식이 앱 레이어에서 깨졌다. 이행 재건을 **하네스 레이어 전용(`--no-app`)** 으로
+   재정의했다 — 상세와 근거는 아래 hcg-harness 0.3.1 항목.
+
+**검증(렌더링 스모크, rung-3)**: 템플릿을 토큰 치환으로 렌더링해 실측 — npm install(next 16.3.4 ·
+tailwind 4.3.3 · zod 4.5.4 · prisma 7.10.0 으로 해소) → `prisma generate`/`validate`(.env 유무
+양쪽) → lint(경고 0) → `tsc --noEmit` → vitest → `next build` → 드리프트 게이트(parity·drift
+양방향) 전 단계 green.
+
 ### hcg-core 0.1.3 — 2026-09-01
 
 **신규 스킬 `promoting-db-to-prod`** — 로컬/개발 DB → 운영 DB 서버 이관 런북 (dump → restore →
@@ -229,6 +281,25 @@ A/B) · 모킹 경계의 실 DB 스모크 · 금지 3종(공수 추정·개선 �
   를 오케스트레이션 층에 적용한다. 단위 테스트 15건 추가 + bootstrap 스모크의 버전 리터럴
   제거(plugin.json 대조 — 범프마다 깨지던 것). 이 변경 자체는 플러그인 버전 범프 대상이 아니었다
   (0.1.0 유지) — 이후 0.1.1 로의 범프는 위 항목 참조.
+
+### hcg-harness 0.3.1 — 2026-09-04
+
+**이행 = 하네스 레이어만 (앱 불가침)** — hcg-core 0.1.4 가 앱 템플릿 스택을 한 세대 올리면서
+(Next 16 · Tailwind 4 · Prisma 7), 이행 램프의 "철거 후 gap-fill 재건(앱 포함)" 이 깨졌다:
+구 세대 앱 위에 새 세대 파일(`prisma.config.ts` · `lib/db.ts`)이 gap-fill 로 끼어들어 설치되지
+않은 패키지를 import 하는 파손 상태를 만들고, 새 템플릿에서 사라진 `tailwind.config.ts` 는
+고아로 남는다(마이그레이션 스모크 3건이 이를 검출 — 우연이 아니라 설계 전제의 만료).
+
+**개정**: ① 재건(`/hcg-core:init`)은 **항상 `--no-app`** — 하네스 레이어(contracts · .claude ·
+CLAUDE.md)만 hcg-core 가 관리하고, 앱(`{{APP_DIR}}/**`)과 그 CI(`.github/`)는 사용자 소유로
+불가침. ② 철거 대상에서 `.github/workflows/ci.yml` 제거 — 구 앱과 스택이 정합한 것은 레거시
+CI 이므로 앱과 함께 남긴다(종전엔 삭제 후 새 본 재생성에 의존했다). ③ 앱 스택을 hcg 새 표준으로
+올리는 것은 이행 밖의 **별도 과업**으로 검토 목록에 싣는다.
+
+**기각한 대안**: 이행 시 앱도 새 세대로 재조립(gap-fill 확대) — 동작하는 사용자 앱을 이행이라는
+이름으로 파손하는 것과 같다. 스택 업그레이드는 검증 사다리를 갖춘 명시적 과업이어야 한다.
+마이그레이션 스모크는 하네스 레이어 등식 + **앱 불가침 단언**(구 파일 보존 · 새 세대 파일 미주입 ·
+레거시 ci.yml 잔존)으로 재작성.
 
 ### hcg-harness 0.3.0 — 2026-08-07
 

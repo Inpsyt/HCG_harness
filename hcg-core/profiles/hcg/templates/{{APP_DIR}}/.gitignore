@@ -24,6 +24,9 @@ yarn-error.log*
 .env.*
 !.env.example
 
+# prisma generated client (재생성물 — `npx prisma generate`)
+/lib/generated/
+
 # typescript
 *.tsbuildinfo
 

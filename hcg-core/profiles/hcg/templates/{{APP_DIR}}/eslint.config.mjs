@@ -1,8 +1,12 @@
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import { FlatCompat } from "@eslint/eslintrc";
+// eslint-config-next 16 은 flat-config 네이티브 — FlatCompat(@eslint/eslintrc) 경유는 깨진다
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const compat = new FlatCompat({ baseDirectory: __dirname });
+const eslintConfig = [
+  // prisma generate 산출물 — 린트 대상이 아니다
+  { ignores: ["lib/generated/"] },
+  ...nextVitals,
+  ...nextTs,
+];
 
-export default [...compat.extends("next/core-web-vitals", "next/typescript")];
+export default eslintConfig;

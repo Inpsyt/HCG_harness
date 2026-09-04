@@ -870,7 +870,7 @@ test("hcg 프로파일은 retiredFiles 3버킷을 선언한다", () => {
     "CLAUDE.md",
     ".claude/CLAUDE-core.md",
     ".claude/settings.json",
-    ".github/workflows/ci.yml",
+    // 0.3.1: ci.yml 은 철거하지 않는다 — 구 앱과 스택 정합한 레거시 CI 를 앱과 함께 남긴다
   ]);
   assert.deepEqual(r.archive, [
     "tasks/phase-meta.yml",

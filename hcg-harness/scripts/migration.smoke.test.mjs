@@ -32,23 +32,42 @@ function legacyRetire(dir) {
     ["--mode", "retire", "--profile", "hcg",
      "--profiles-dir", LEGACY_PROFILES, "--target", dir], QUIET), 0, "retire");
 }
-function coreInit(dir, gapFill) {
+function coreInit(dir, gapFill, noApp) {
   const argv = ["--mode", "init", "--profile", "hcg", "--project-name", "Mig", "--app-dir", "apps/web",
                 "--profiles-dir", CORE_PROFILES, "--target", dir];
   if (gapFill) argv.splice(2, 0, "--gap-fill");
+  if (noApp) argv.splice(2, 0, "--no-app");
   assert.equal(coreMain(argv, QUIET), 0, gapFill ? "hcg-core gap-fill" : "hcg-core 신규 init");
 }
+/** 이행 재건 = 하네스 레이어만(--no-app) — 앱·.github 은 사용자 소유로 불가침 (0.3.1 계약). */
+function coreMigrate(dir) { coreInit(dir, true, true); }
 
-/** 이행본 A 와 신규 기준선 B 를 비교해 { missing, orphans } 를 낸다. */
+/** 이행본 A 와 신규 기준선 B 를 **하네스 레이어만** 비교해 { missing, orphans } 를 낸다.
+ * 앱(`apps/web/`)과 그 CI(`.github/`)는 비교 대상이 아니다 — hcg-core 앱 템플릿이 스택 세대를
+ * 넘어가면(0.1.4: Next 16·Tailwind 4·Prisma 7) 이행된 구 세대 앱과 신규 앱은 같아질 수 없고,
+ * 같아지게 만드는 것(gap-fill 주입·구 파일 삭제)이 곧 사용자 앱 파손이다. */
 function orphanReport(migrated, fresh) {
+  const harness = (f) => !f.startsWith("apps/web/") && !f.startsWith(".github/");
   const A = new Set(walk(migrated));
-  const B = new Set(walk(fresh));
+  const B = new Set(walk(fresh).filter(harness));
   return {
     A, B,
     missing: [...B].filter((f) => !A.has(f)),
-    orphans: [...A].filter((f) => !B.has(f))
+    orphans: [...A].filter(harness).filter((f) => !B.has(f))
       .filter((f) => !f.startsWith("docs/legacy-harness/") && !f.endsWith(".legacy")),
   };
+}
+
+/** 앱 불가침 단언 — 이행이 구 세대 앱을 건드리지 않았다. */
+function assertAppUntouched(dir) {
+  assert.ok(existsSync(path.join(dir, "apps", "web", "tailwind.config.ts")),
+    "구 세대 앱 파일(tailwind.config.ts)은 그대로 남아야 한다 — 삭제는 사용자 앱 파손");
+  assert.ok(!existsSync(path.join(dir, "apps", "web", "prisma.config.ts")),
+    "새 세대 파일(prisma.config.ts)이 구 앱에 주입되면 안 된다");
+  assert.ok(!existsSync(path.join(dir, "apps", "web", "lib", "db.ts")),
+    "새 세대 파일(lib/db.ts)이 구 앱에 주입되면 안 된다");
+  assert.ok(existsSync(path.join(dir, ".github", "workflows", "ci.yml")),
+    "레거시 ci.yml 은 구 앱과 스택 정합 — 철거되지 않고 남아야 한다");
 }
 
 test("레거시 init → retire → hcg-core gap-fill 이후 고아가 0 이다", () => {
@@ -63,8 +82,8 @@ test("레거시 init → retire → hcg-core gap-fill 이후 고아가 0 이다"
     // ② 철거
     legacyRetire(migrated);
 
-    // ③ hcg-core 재건 (비어있지 않으므로 gap-fill)
-    coreInit(migrated, true);
+    // ③ hcg-core 재건 (비어있지 않으므로 gap-fill · 하네스 레이어만)
+    coreMigrate(migrated);
 
     // ④ 기준선: hcg-core 신규 init
     coreInit(fresh, false);
@@ -72,6 +91,7 @@ test("레거시 init → retire → hcg-core gap-fill 이후 고아가 0 이다"
     const { A, missing, orphans } = orphanReport(migrated, fresh);
     assert.deepEqual(missing, [], `hcg-core 신규 init 의 파일이 이행본에 없음: ${missing.join(", ")}`);
     assert.deepEqual(orphans, [], `이행 후 남은 고아: ${orphans.join(", ")}`);
+    assertAppUntouched(migrated);
 
     // 아카이브가 실제로 자산을 보존했는지
     assert.ok(A.has("docs/legacy-harness/tasks/TODO.md"), "tasks 아카이브 보존");
@@ -112,12 +132,13 @@ test("사용자 수정본이 있는 프로젝트도 백업·보존이 성립하�
     assert.equal(readFileSync(skill, "utf8"), "USER EDITED SKILL\n",
       "replaceIfPristine 의 사용자 수정본은 원 위치 보존");
 
-    coreInit(migrated, true);
+    coreMigrate(migrated);
     coreInit(fresh, false);
 
     const { missing, orphans } = orphanReport(migrated, fresh);
     assert.deepEqual(missing, [], `이행본에 없는 파일: ${missing.join(", ")}`);
     assert.deepEqual(orphans, [], `이행 후 남은 고아: ${orphans.join(", ")}`);
+    assertAppUntouched(migrated);
   } finally {
     rmSync(migrated, { recursive: true, force: true });
     if (fresh) rmSync(fresh, { recursive: true, force: true });
@@ -148,7 +169,7 @@ test("릴리스마다 upgrade 를 돌린(=`.new` 가 쌓인) 프로젝트도 이
     assert.ok(existsSync(path.join(migrated, "CLAUDE.md.new")), "전제: `.new` 잔재가 생겼다");
 
     legacyRetire(migrated);
-    coreInit(migrated, true);
+    coreMigrate(migrated);
     coreInit(fresh, false);
 
     const { A, missing, orphans } = orphanReport(migrated, fresh);

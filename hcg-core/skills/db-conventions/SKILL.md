@@ -15,7 +15,10 @@ description: 데이터베이스 작업의 포터블 컨벤션(HCG 표준) — co
 ## 스택 원칙 (HCG 표준)
 
 - **DBMS**: MariaDB (MySQL 호환).
-- **ORM**: Prisma — `prisma/schema.prisma` 의 `datasource` `provider = "mysql"` 로 MariaDB 에 연결한다. 스키마 정의 / 마이그레이션 / 데이터 접근을 모두 Prisma 로 일관한다.
+- **ORM**: Prisma 7 — `prisma/schema.prisma` 의 `datasource` `provider = "mysql"` 로 MariaDB 에 연결한다. 스키마 정의 / 마이그레이션 / 데이터 접근을 모두 Prisma 로 일관한다.
+  - **접속 URL 정본은 `prisma.config.ts`** (v7 부터 CLI 가 .env 자동 로드를 하지 않는다 — `dotenv/config` import + `datasource.url` 로 선언). schema.prisma 의 datasource 에는 provider 만 둔다.
+  - **런타임 클라이언트는 드라이버 어댑터 경유**(v7 필수): `@prisma/adapter-mariadb` 를 쓰는 `lib/db.ts` 싱글턴을 import 한다 — PrismaClient 를 곳곳에서 직접 생성하지 않는다. `DATABASE_URL` 은 `mysql://` 그대로 쓴다(어댑터가 `mariadb://` 로 재작성).
+  - **생성물**: `prisma generate` 산출물은 `lib/generated/prisma`(gitignore, 재생성물). v7 부터 `migrate dev`/`db push` 가 generate 를 자동 실행하지 않는다 — 스키마 변경 후 `npx prisma generate` 를 명시 실행한다.
   - **금지**: TypeORM 등 대체 ORM 도입 금지(HCG 표준 위반). raw SQL 이 꼭 필요하면 `prisma.$queryRaw`(파라미터 바인딩) 로만 작성하고 문자열 보간을 피한다.
 - **스키마 위치**: `prisma/schema.prisma` (모델) + `prisma/migrations/`(마이그레이션). 인덱스·유니크·관계는 명세(`contracts/db-schema.md`)에 정의된 것을 정확히 반영한다.
 - **데이터 접근 위치**: DB 접근 로직은 각 기능의 `features/{기능명}/actions.ts`(Server Action / API 핸들러)에 둔다. 다른 feature 의 데이터 계층을 침범하지 않는다.

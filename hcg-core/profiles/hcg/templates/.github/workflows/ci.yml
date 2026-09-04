@@ -36,8 +36,22 @@ jobs:
 
   # contracts/db-schema ↔ Prisma 결정론적 드리프트 게이트.
   # 스키마·마이그레이션 불일치면 비-0 종료 → 빌드 실패
+  # Prisma 7 은 마이그레이션 재생(diff --from-migrations)에 shadow DB 가 필수 —
+  # 서비스 컨테이너를 쓰고 prisma.config.ts 가 SHADOW_DATABASE_URL 을 읽는다.
   contract-drift:
     runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11
+        env:
+          MARIADB_DATABASE: shadow
+          MARIADB_ROOT_PASSWORD: root
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=10
+    env:
+      SHADOW_DATABASE_URL: "mysql://root:root@127.0.0.1:3306/shadow"
     defaults:
       run:
         working-directory: {{APP_DIR}}
@@ -50,11 +64,14 @@ jobs:
           cache-dependency-path: "{{APP_DIR}}/package-lock.json"
       - run: npm ci
       - run: npx prisma validate
+      # 첫 마이그레이션 전 프로젝트도 게이트가 돌도록 — v7 은 커넥터 판별에 락 파일이 필요
       - run: mkdir -p prisma/migrations
+      - run: test -f prisma/migrations/migration_lock.toml || printf 'provider = "mysql"\n' > prisma/migrations/migration_lock.toml
+      # v7: --to-schema-datamodel 은 제거됨 — --to-schema 사용
       - run: >
           npx prisma migrate diff
           --from-migrations prisma/migrations
-          --to-schema-datamodel prisma/schema.prisma
+          --to-schema prisma/schema.prisma
           --exit-code
 
   # E2E 는 실제 DB 가 필요하다 — 사용하려면 아래 주석을 해제 (MariaDB 서비스 컨테이너).
