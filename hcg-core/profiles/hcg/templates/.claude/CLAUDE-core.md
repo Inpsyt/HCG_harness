@@ -11,6 +11,7 @@
 | 독립 Task 여러 개 | `parallel-tasks` 스킬 |
 | 대량 동질 작업 (코드모드·테스트 백필) | `migrate` · `test-gen` 워크플로 |
 | contracts ↔ 코드 드리프트 점검 | `converge` 워크플로 |
+| 프로토타입 인수 진단 (전환 전 살림/수리/재제작 판정) | `intake-audit` 스킬 — read-only, 코드 수정 금지 |
 | 코드 리뷰 | `/code-review` (ultra) — 내장 |
 | 외부 교차모델 리뷰 (비가역·고위험 변경·릴리스 전) | `codex-review` 스킬 — 온디맨드·백그라운드, 게이트 아님 |
 | 전면 감사·리서치 | ultracode / 즉석 Workflow — 내장 |
