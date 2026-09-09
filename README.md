@@ -203,7 +203,16 @@ overloaded/unavailable 일 때 전용이라 **사용량 한도에는 발동하�
 
 ## 6. 플러그인 업데이트
 
-이 레포에 새 버전이 푸시돼도 **소비 프로젝트에 자동 반영되지 않는다.**
+이 레포에 새 버전이 푸시돼도 소비 프로젝트에 **기본으로는 자동 반영되지 않는다** — 서드파티
+마켓플레이스는 auto-update 가 **기본 off** 다. 경로는 두 가지:
+
+**자동 (권장 — 머신당 1회 설정)**: `/plugin` → **Marketplaces** 탭에서
+`hcg-harness-marketplace` 의 auto-update 를 켠다. 이후 릴리스는 **세션 시작 후**(최대 10분
+랜덤 지연) 자동 도달한다 — 떠 있는 세션은 시작 시점 버전을 유지하고, 알림이 오면
+`/reload-plugins` 로 반영한다. "푸시 즉시"가 아니라 "다음 세션 즈음" 모델이다.
+(`DISABLE_AUTOUPDATER` 가 설정된 머신에서는 플러그인 자동 갱신도 함께 꺼진다.)
+
+**수동 (즉시 반영이 필요할 때)**:
 
 ```bash
 claude plugin marketplace update hcg-harness-marketplace
