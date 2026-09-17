@@ -14,8 +14,8 @@ claude plugin install hcg-core@hcg-harness-marketplace
 
 | | 성격 | 대상 |
 |---|---|---|
-| **`hcg-core`** 0.1.2 | **기본** — 세션이 직접 일하고, 필요할 때만 병렬화한다 | **신규 프로젝트 전부** |
-| `hcg-harness` 0.3.0 | 레거시(파이프라인) — 지금은 **hcg-core 로 넘어가는 다리** 역할만 | 기존 레거시 프로젝트의 이행 전용 |
+| **`hcg-core`** 0.1.6 | **기본** — 세션이 직접 일하고, 필요할 때만 병렬화한다 | **신규 프로젝트 전부** |
+| `hcg-harness` 0.3.1 | 레거시(파이프라인) — 지금은 **hcg-core 로 넘어가는 다리** 역할만 | 기존 레거시 프로젝트의 이행 전용 |
 
 ---
 
@@ -141,15 +141,19 @@ hcg-core/
 │  ├─ codex-review             # 외부 교차모델 리뷰 (온디맨드)
 │  └─ db- · backend- · frontend-conventions   # HCG 표준 스택
 ├─ workflows/              # migrate · test-gen · converge
-├─ hooks/                  # SessionStart 1종 (부트스트랩 상태 안내)
+├─ hooks/                  # SessionStart(부트스트랩 안내) + PreToolUse 파괴적 명령 가드
 ├─ profiles/hcg/           # 프로파일 + 템플릿 (init 이 렌더하는 30개 파일)
 └─ scripts/
    ├─ bootstrap.mjs        # init · upgrade 엔진
    └─ run-headless.mjs     # 무인 실행 러너
 ```
 
-**훅은 1종뿐**이다. 레거시는 4종(계약 잠금·편집마다 lint·Phase 게이트·컨텍스트)이었고, 그중 셋이
-모든 도구 호출에 프로세스를 띄우는 상시 비용이었다.
+**훅은 2종뿐**이다. 레거시는 4종(계약 잠금·편집마다 lint·Phase 게이트·컨텍스트)이었고, 그중 셋이
+모든 도구 호출에 프로세스를 띄우는 상시 비용이었다. 남긴 둘은 §2 분류로 가드레일이다 —
+SessionStart(세션당 1회)와 **파괴적 명령 가드**(0.1.6, matcher `Bash|PowerShell` 한정이라 편집
+경로 비용 0): `prisma migrate reset`·SQL DROP/TRUNCATE·루트 `rm -rf`·`git push --force` 를
+거부한다. 무인 실행(§5)이 `--dangerously-skip-permissions` 로 돌므로 그 경로에선 이 훅이
+**유일한 기계 방어선**이다. 오탐은 `HARNESS_DISABLE_DESTRUCTIVE_GUARD=1` 로 그 단계만 푼다.
 
 ### HCG 표준 스택
 
